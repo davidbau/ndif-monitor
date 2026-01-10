@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from .history import HistoryStore, get_hostname
+from .history import HistoryStore, get_hostname, get_username
 from .results import ModelStatus, model_to_filename
 
 
@@ -238,6 +238,7 @@ def generate_dashboard_html(
     dashboard_data = {
         "generated": datetime.utcnow().isoformat() + "Z",
         "host": get_hostname(),
+        "user": get_username(),
         "days": days,
         "dates": dates,
         "models": all_models,
@@ -573,7 +574,8 @@ def _generate_html(data: Dict[str, Any]) -> str:
             // Initialize
             document.getElementById('updated').textContent = new Date(DATA.generated).toLocaleString();
             if (DATA.host) {
-                document.getElementById('host').textContent = '@ ' + DATA.host;
+                const hostInfo = DATA.user ? DATA.user + '@' + DATA.host : DATA.host;
+                document.getElementById('host').textContent = '(' + hostInfo + ')';
             }
 
             // Populate model selector
@@ -773,10 +775,14 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     `;
                 }});
 
+                // Colab link for testing this model
+                const colabUrl = `https://colab.research.google.com/github/${{DATA.github_repo}}/blob/main/notebooks/test_basic_trace.ipynb`;
+
                 card.innerHTML = `
                     <div class="model-name">${{model.model}}</div>
                     <span class="model-status ${{statusClass}}">${{model.overall_status}}</span>
                     ${{lastOkStr ? `<span class="last-success" style="margin-left:0.5rem">All OK ${{lastOkStr}}</span>` : ''}}
+                    <a href="${{colabUrl}}" target="_blank" class="colab-link" style="float:right;font-size:0.75rem">Test in Colab</a>
                     <div class="scenarios">${{scenariosHtml}}</div>
                 `;
 

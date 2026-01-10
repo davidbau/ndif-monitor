@@ -26,7 +26,7 @@ from .results import (
     model_to_filename,
 )
 from .jupyter_executor import VenvManager, run_notebook_test
-from .history import HistoryStore, HistoryEntry, get_hostname
+from .history import HistoryStore, HistoryEntry, get_hostname, get_username
 
 
 @dataclass
@@ -203,6 +203,7 @@ class MonitorRunner:
             error_category=result.error_category.value if result.error_category else None,
             details=result.details,
             host=get_hostname(),
+            user=get_username(),
         )
         self.history.append(history_entry)
 

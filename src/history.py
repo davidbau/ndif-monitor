@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
 import socket
+import getpass
 
 from .results import Status, ErrorCategory
 
@@ -13,6 +14,11 @@ from .results import Status, ErrorCategory
 def get_hostname() -> str:
     """Get short hostname of current machine."""
     return socket.gethostname().split('.')[0]
+
+
+def get_username() -> str:
+    """Get current username."""
+    return getpass.getuser()
 
 
 @dataclass
@@ -26,6 +32,7 @@ class HistoryEntry:
     error_category: Optional[str] = None  # ErrorCategory enum value
     details: Optional[str] = None
     host: Optional[str] = None  # Machine hostname
+    user: Optional[str] = None  # Username
 
     def to_json_line(self) -> str:
         """Convert to JSON line (no newline)."""
@@ -44,6 +51,8 @@ class HistoryEntry:
             data["det"] = details
         if self.host:
             data["h"] = self.host
+        if self.user:
+            data["u"] = self.user
         return json.dumps(data, separators=(",", ":"))
 
     @classmethod
@@ -59,6 +68,7 @@ class HistoryEntry:
             error_category=data.get("ec"),
             details=data.get("det"),
             host=data.get("h"),
+            user=data.get("u"),
         )
 
 
