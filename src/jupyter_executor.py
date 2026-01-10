@@ -177,15 +177,20 @@ class NotebookExecutor:
         env["JUPYTER_RUNTIME_DIR"] = runtime_dir
 
         # Build nbconvert command with random ports bound to localhost only
-        # Use -c to apply nest_asyncio before running nbconvert (fixes Python 3.8 asyncio issues)
+        # Create a wrapper script to apply nest_asyncio before importing jupyter (fixes Python 3.8)
         ports = get_random_ports(5)
+        wrapper_script = os.path.join(temp_dir, "run_nbconvert.py")
+        with open(wrapper_script, "w") as f:
+            f.write("""import nest_asyncio
+nest_asyncio.apply()
+import sys
+from nbconvert import nbconvertapp
+sys.exit(nbconvertapp.main())
+""")
+
         cmd = [
             self.venv.get_python(),
-            "-c",
-            # nest_asyncio must be applied before importing anything that uses asyncio
-            "import nest_asyncio; nest_asyncio.apply(); "
-            "import sys; sys.argv = sys.argv[1:]; "  # Remove -c from argv
-            "from nbconvert import nbconvertapp; nbconvertapp.main()",
+            wrapper_script,
             "--to", "notebook",
             "--execute",
             "--output", output_name,
