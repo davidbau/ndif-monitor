@@ -342,6 +342,7 @@ class MonitorRunner:
                 "jupyter",
                 "nbconvert",
                 "ipykernel",
+                "nest_asyncio",  # Fix asyncio issues on Python 3.8
                 "nnsight",
                 "torch",
             ])
