@@ -7,10 +7,17 @@ import tempfile
 import shutil
 import json
 import time
+import random
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime
+
+
+def get_random_ports(count: int = 5) -> List[int]:
+    """Get random high ports for Jupyter kernel communication."""
+    # Use ports in the dynamic/private range (49152-65535)
+    return [random.randint(49152, 65000) for _ in range(count)]
 
 from .results import TestResult, Status, ErrorCategory, classify_error, determine_status
 
@@ -164,7 +171,13 @@ class NotebookExecutor:
         if env_vars:
             env.update(env_vars)
 
-        # Build nbconvert command
+        # Use isolated runtime directory to avoid port conflicts
+        runtime_dir = os.path.join(temp_dir, "jupyter_runtime")
+        os.makedirs(runtime_dir, exist_ok=True)
+        env["JUPYTER_RUNTIME_DIR"] = runtime_dir
+
+        # Build nbconvert command with random ports to avoid conflicts
+        ports = get_random_ports(5)
         cmd = [
             self.venv.get_python(),
             "-m", "jupyter", "nbconvert",
@@ -173,6 +186,11 @@ class NotebookExecutor:
             "--output", output_name,
             "--output-dir", temp_dir,
             "--ExecutePreprocessor.timeout", str(timeout),
+            f"--KernelManager.shell_port={ports[0]}",
+            f"--KernelManager.iopub_port={ports[1]}",
+            f"--KernelManager.stdin_port={ports[2]}",
+            f"--KernelManager.hb_port={ports[3]}",
+            f"--KernelManager.control_port={ports[4]}",
             str(notebook_path),
         ]
 
