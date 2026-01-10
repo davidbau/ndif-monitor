@@ -9,7 +9,7 @@ import json
 import time
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime
 
 from .results import TestResult, Status, ErrorCategory, classify_error, determine_status
@@ -75,7 +75,7 @@ class VenvManager:
             return str(self.venv_path / "Scripts" / "pip.exe")
         return str(self.venv_path / "bin" / "pip")
 
-    def install_packages(self, packages: list[str], quiet: bool = True) -> None:
+    def install_packages(self, packages: List[str], quiet: bool = True) -> None:
         """Install packages in the venv.
 
         Args:
