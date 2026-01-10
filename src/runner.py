@@ -339,12 +339,10 @@ class MonitorRunner:
             # Install required packages
             print("\nInstalling test dependencies...")
             venv.install_packages([
-                # Pin jupyter versions that work with Python 3.8 (before asyncio changes)
-                "jupyter-core==5.3.0",
-                "jupyter-client==7.4.9",
-                "nbconvert==7.6.0",
-                "ipykernel==6.25.0",
-                "nest_asyncio",
+                # Use papermill for notebook execution - handles asyncio better
+                # than nbconvert on Python 3.8
+                "papermill",
+                "ipykernel",
                 "nnsight",
                 "torch",
             ])

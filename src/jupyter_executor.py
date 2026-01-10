@@ -1,4 +1,8 @@
-"""Jupyter notebook execution with fresh virtual environments."""
+"""Jupyter notebook execution with fresh virtual environments.
+
+Uses papermill for notebook execution - more reliable than nbconvert --execute,
+especially on Python 3.8 where asyncio compatibility is tricky.
+"""
 
 import os
 import sys
@@ -12,12 +16,6 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime
-
-
-def get_random_ports(count: int = 5) -> List[int]:
-    """Get random high ports for Jupyter kernel communication."""
-    # Use ports in the dynamic/private range (49152-65535)
-    return [random.randint(49152, 65000) for _ in range(count)]
 
 from .results import TestResult, Status, ErrorCategory, classify_error, determine_status
 
@@ -142,7 +140,7 @@ class NotebookExecutor:
         env_vars: Optional[Dict[str, str]] = None,
         timeout: int = 300,
     ) -> ExecutionResult:
-        """Execute a notebook and capture results.
+        """Execute a notebook and capture results using papermill.
 
         Args:
             notebook_path: Path to the .ipynb file
@@ -163,8 +161,7 @@ class NotebookExecutor:
 
         # Create temp directory for executed notebook output
         temp_dir = tempfile.mkdtemp(prefix="nbexec_")
-        output_name = "executed_notebook"
-        output_path = os.path.join(temp_dir, f"{output_name}.ipynb")
+        output_path = os.path.join(temp_dir, "executed_notebook.ipynb")
 
         # Build environment
         env = os.environ.copy()
@@ -176,34 +173,17 @@ class NotebookExecutor:
         os.makedirs(runtime_dir, exist_ok=True)
         env["JUPYTER_RUNTIME_DIR"] = runtime_dir
 
-        # Build nbconvert command with random ports bound to localhost only
-        # Create a wrapper script to apply nest_asyncio before importing jupyter (fixes Python 3.8)
-        ports = get_random_ports(5)
-        wrapper_script = os.path.join(temp_dir, "run_nbconvert.py")
-        with open(wrapper_script, "w") as f:
-            f.write("""import nest_asyncio
-nest_asyncio.apply()
-import sys
-from nbconvert import nbconvertapp
-sys.exit(nbconvertapp.main())
-""")
-
+        # Use papermill via python -m for notebook execution
+        # Papermill handles asyncio better than nbconvert on Python 3.8
         cmd = [
             self.venv.get_python(),
-            wrapper_script,
-            "--to", "notebook",
-            "--execute",
-            "--output", output_name,
-            "--output-dir", temp_dir,
-            "--ExecutePreprocessor.timeout", str(timeout),
-            # Bind kernel ports to localhost only (not exposed to network)
-            "--KernelManager.ip=127.0.0.1",
-            f"--KernelManager.shell_port={ports[0]}",
-            f"--KernelManager.iopub_port={ports[1]}",
-            f"--KernelManager.stdin_port={ports[2]}",
-            f"--KernelManager.hb_port={ports[3]}",
-            f"--KernelManager.control_port={ports[4]}",
+            "-m", "papermill",
             str(notebook_path),
+            output_path,
+            "--cwd", str(notebook_path.parent),
+            "--execution-timeout", str(timeout),
+            "--log-output",
+            "--progress-bar",
         ]
 
         start_time = time.time()
@@ -213,7 +193,7 @@ sys.exit(nbconvertapp.main())
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=timeout + 30,  # Extra buffer for nbconvert overhead
+                timeout=timeout + 60,  # Extra buffer for papermill overhead
             )
             duration_ms = int((time.time() - start_time) * 1000)
 
