@@ -176,7 +176,7 @@ class NotebookExecutor:
         os.makedirs(runtime_dir, exist_ok=True)
         env["JUPYTER_RUNTIME_DIR"] = runtime_dir
 
-        # Build nbconvert command with random ports to avoid conflicts
+        # Build nbconvert command with random ports bound to localhost only
         ports = get_random_ports(5)
         cmd = [
             self.venv.get_python(),
@@ -186,6 +186,8 @@ class NotebookExecutor:
             "--output", output_name,
             "--output-dir", temp_dir,
             "--ExecutePreprocessor.timeout", str(timeout),
+            # Bind kernel ports to localhost only (not exposed to network)
+            "--KernelManager.ip=127.0.0.1",
             f"--KernelManager.shell_port={ports[0]}",
             f"--KernelManager.iopub_port={ports[1]}",
             f"--KernelManager.stdin_port={ports[2]}",
