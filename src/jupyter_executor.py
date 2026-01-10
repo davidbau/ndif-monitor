@@ -182,9 +182,10 @@ class NotebookExecutor:
         cmd = [
             self.venv.get_python(),
             "-c",
+            # nest_asyncio must be applied before importing anything that uses asyncio
             "import nest_asyncio; nest_asyncio.apply(); "
-            "from nbconvert.exporters.notebook import NotebookExporter; "
-            "from nbconvert import nbconvertapp; nbconvertapp.main()",
+            "import sys; sys.argv = sys.argv[1:]; "  # Remove -c from argv
+            "from nbconvert.app import NbConvertApp; NbConvertApp.launch_instance()",
             "--to", "notebook",
             "--execute",
             "--output", output_name,
