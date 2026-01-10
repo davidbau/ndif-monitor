@@ -5,8 +5,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
+import socket
 
 from .results import Status, ErrorCategory
+
+
+def get_hostname() -> str:
+    """Get short hostname of current machine."""
+    return socket.gethostname().split('.')[0]
 
 
 @dataclass
@@ -19,6 +25,7 @@ class HistoryEntry:
     duration_ms: int
     error_category: Optional[str] = None  # ErrorCategory enum value
     details: Optional[str] = None
+    host: Optional[str] = None  # Machine hostname
 
     def to_json_line(self) -> str:
         """Convert to JSON line (no newline)."""
@@ -35,6 +42,8 @@ class HistoryEntry:
             # Truncate details for history storage
             details = self.details[:200] if len(self.details) > 200 else self.details
             data["det"] = details
+        if self.host:
+            data["h"] = self.host
         return json.dumps(data, separators=(",", ":"))
 
     @classmethod
@@ -49,6 +58,7 @@ class HistoryEntry:
             duration_ms=data["d"],
             error_category=data.get("ec"),
             details=data.get("det"),
+            host=data.get("h"),
         )
 
 

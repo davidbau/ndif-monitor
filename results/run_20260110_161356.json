@@ -1,0 +1,123 @@
+{
+  "timestamp": "2026-01-10T16:13:56.642212Z",
+  "nnsight_version": "0.5.14",
+  "duration_seconds": 349.7,
+  "summary": {
+    "ok": 6,
+    "slow": 0,
+    "degraded": 0,
+    "failed": 6,
+    "unavailable": 0,
+    "total": 12
+  },
+  "tests": [
+    {
+      "model": "meta-llama/Llama-2-7b-hf",
+      "scenario": "basic_trace",
+      "status": "OK",
+      "duration_ms": 22430,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:15:58.109350Z"
+    },
+    {
+      "model": "meta-llama/Llama-2-7b-hf",
+      "scenario": "generation",
+      "status": "OK",
+      "duration_ms": 21802,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:16:19.914178Z"
+    },
+    {
+      "model": "meta-llama/Llama-2-7b-hf",
+      "scenario": "hidden_states",
+      "status": "FAILED",
+      "duration_ms": 19624,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:16:39.544025Z"
+    },
+    {
+      "model": "EleutherAI/gpt-j-6b",
+      "scenario": "basic_trace",
+      "status": "FAILED",
+      "duration_ms": 20673,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:17:00.219928Z"
+    },
+    {
+      "model": "EleutherAI/gpt-j-6b",
+      "scenario": "generation",
+      "status": "OK",
+      "duration_ms": 21938,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:17:22.162285Z"
+    },
+    {
+      "model": "EleutherAI/gpt-j-6b",
+      "scenario": "hidden_states",
+      "status": "FAILED",
+      "duration_ms": 19318,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:17:41.484959Z"
+    },
+    {
+      "model": "allenai/Olmo-3-1025-7B",
+      "scenario": "basic_trace",
+      "status": "OK",
+      "duration_ms": 21286,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:18:02.775595Z"
+    },
+    {
+      "model": "allenai/Olmo-3-1025-7B",
+      "scenario": "generation",
+      "status": "OK",
+      "duration_ms": 20306,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:18:23.085616Z"
+    },
+    {
+      "model": "allenai/Olmo-3-1025-7B",
+      "scenario": "hidden_states",
+      "status": "FAILED",
+      "duration_ms": 19482,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:18:42.570152Z"
+    },
+    {
+      "model": "openai-community/gpt2",
+      "scenario": "basic_trace",
+      "status": "FAILED",
+      "duration_ms": 19174,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:19:01.747206Z"
+    },
+    {
+      "model": "openai-community/gpt2",
+      "scenario": "generation",
+      "status": "OK",
+      "duration_ms": 19422,
+      "error_category": null,
+      "details": null,
+      "timestamp": "2026-01-10T16:19:21.172598Z"
+    },
+    {
+      "model": "openai-community/gpt2",
+      "scenario": "hidden_states",
+      "status": "FAILED",
+      "duration_ms": 18788,
+      "error_category": "UNKNOWN",
+      "details": "Expecting value: line 1 column 1 (char 0)",
+      "timestamp": "2026-01-10T16:19:39.964539Z"
+    }
+  ]
+}

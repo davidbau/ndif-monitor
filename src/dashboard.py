@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from .history import HistoryStore
+from .history import HistoryStore, get_hostname
 from .results import ModelStatus, model_to_filename
 
 
@@ -237,6 +237,7 @@ def generate_dashboard_html(
     # Convert data to JSON for JavaScript
     dashboard_data = {
         "generated": datetime.utcnow().isoformat() + "Z",
+        "host": get_hostname(),
         "days": days,
         "dates": dates,
         "models": all_models,
@@ -501,7 +502,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
     <div class="header">
         <div>
             <h1>NDIF Monitor Dashboard</h1>
-            <div class="timestamp">Last updated: <span id="updated"></span></div>
+            <div class="timestamp">Last updated: <span id="updated"></span> <span id="host" style="opacity:0.6"></span></div>
         </div>
         <div class="legend">
             <div class="legend-item"><div class="legend-color" style="background:var(--ok)"></div> OK</div>
@@ -571,6 +572,9 @@ def _generate_html(data: Dict[str, Any]) -> str:
         function initDashboard() {
             // Initialize
             document.getElementById('updated').textContent = new Date(DATA.generated).toLocaleString();
+            if (DATA.host) {
+                document.getElementById('host').textContent = '@ ' + DATA.host;
+            }
 
             // Populate model selector
             const modelSelect = document.getElementById('modelSelect');
