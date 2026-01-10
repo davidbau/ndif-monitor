@@ -1,0 +1,4 @@
+# NDIF Monitor - Requirements for the monitor script itself
+# Note: jupyter/nnsight/torch are installed in a fresh temp venv per test run
+
+requests>=2.28.0
