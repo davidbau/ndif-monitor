@@ -343,6 +343,9 @@ class MonitorRunner:
                 # than nbconvert on Python 3.8
                 "papermill",
                 "ipykernel",
+                # Install transformers first to ensure compatible version
+                # nnsight requires CompileConfig which needs transformers>=4.36
+                "transformers>=4.36",
                 "nnsight",
                 "torch",
             ])
