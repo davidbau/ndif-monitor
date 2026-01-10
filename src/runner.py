@@ -339,8 +339,10 @@ class MonitorRunner:
             # Install required packages
             print("\nInstalling test dependencies...")
             venv.install_packages([
-                "jupyter",
-                "nbconvert",
+                # Pin jupyter versions that work with Python 3.8
+                "jupyter-client<8",
+                "jupyter-core<5.4",
+                "nbconvert<7.8",
                 "ipykernel",
                 "nest_asyncio",  # Fix asyncio issues on Python 3.8
                 "nnsight",
