@@ -9,18 +9,8 @@ venv/
 .venv/
 *.egg-info/
 
-# Results (optional - you may want to track these)
-# results/
-
-# Cycle state (regenerates automatically)
-results/.cycle_state.json
-
-# History file (can grow large)
-results/history.jsonl
-
-# Generated dashboard (regenerated each run)
-results/dashboard.html
-results/data/
+# Results directory (all generated at runtime)
+results/
 
 # Logs
 logs/
