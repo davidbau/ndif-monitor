@@ -185,7 +185,7 @@ class NotebookExecutor:
             # nest_asyncio must be applied before importing anything that uses asyncio
             "import nest_asyncio; nest_asyncio.apply(); "
             "import sys; sys.argv = sys.argv[1:]; "  # Remove -c from argv
-            "from nbconvert.app import NbConvertApp; NbConvertApp.launch_instance()",
+            "from nbconvert import nbconvertapp; nbconvertapp.main()",
             "--to", "notebook",
             "--execute",
             "--output", output_name,
