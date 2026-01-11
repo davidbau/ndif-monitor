@@ -25,3 +25,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime state
+.last_package_install
