@@ -7,13 +7,17 @@ set -e
 # Change to script directory
 cd "$(dirname "$0")/.."
 
-# Activate venv if it exists
-if [ -f "venv/bin/activate" ]; then
+# Activate conda environment (requires Python 3.12 for NDIF compatibility)
+if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/miniconda3/etc/profile.d/conda.sh"
+    conda activate ndif-monitor-312
+elif [ -f "venv/bin/activate" ]; then
+    # Fallback to regular venv
     source venv/bin/activate
 fi
 
 # Default deploy path (can be overridden via environment variable)
-DEPLOY_PATH="${NDIF_DEPLOY_PATH:-}"
+DEPLOY_PATH="${NDIF_DEPLOY_PATH:-/share/projects/ndif-monitor/www}"
 
 # Build deployment args
 DEPLOY_ARGS=""
