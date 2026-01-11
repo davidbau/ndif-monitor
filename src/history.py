@@ -1,14 +1,45 @@
 """Historical data storage for NDIF Monitor dashboard."""
 
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
 import socket
 import getpass
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo  # Python < 3.9
+
 from .results import Status, ErrorCategory
+
+
+# Eastern timezone for date grouping
+EASTERN = ZoneInfo("America/New_York")
+
+
+def utc_to_eastern_date(timestamp: str) -> str:
+    """Convert UTC timestamp to Eastern date string (YYYY-MM-DD).
+
+    Args:
+        timestamp: ISO format timestamp ending in 'Z' (UTC)
+
+    Returns:
+        Date string in YYYY-MM-DD format in Eastern timezone
+    """
+    # Parse UTC timestamp
+    ts = timestamp.rstrip('Z')
+    try:
+        dt = datetime.fromisoformat(ts).replace(tzinfo=timezone.utc)
+    except ValueError:
+        # Fallback: just use the date portion
+        return timestamp[:10]
+
+    # Convert to Eastern
+    eastern_dt = dt.astimezone(EASTERN)
+    return eastern_dt.strftime("%Y-%m-%d")
 
 
 def get_hostname() -> str:
@@ -183,8 +214,8 @@ class HistoryStore:
         daily: Dict[str, Dict[str, Dict[str, str]]] = {}
 
         for entry in entries:
-            # Extract date from timestamp
-            date = entry.timestamp[:10]  # YYYY-MM-DD
+            # Extract date from timestamp, converting to Eastern timezone
+            date = utc_to_eastern_date(entry.timestamp)
 
             if date not in daily:
                 daily[date] = {}
