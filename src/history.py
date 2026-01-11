@@ -42,15 +42,14 @@ def utc_to_eastern_date(timestamp: str) -> str:
     return eastern_dt.strftime("%Y-%m-%d")
 
 
-def utc_to_eastern_segment(timestamp: str) -> str:
-    """Convert UTC timestamp to Eastern date + 4-hour segment.
+def utc_to_eastern_hour(timestamp: str) -> str:
+    """Convert UTC timestamp to Eastern date + hour.
 
     Args:
         timestamp: ISO format timestamp ending in 'Z' (UTC)
 
     Returns:
-        String in format "YYYY-MM-DD-S" where S is segment 0-5
-        (0=00:00-04:00, 1=04:00-08:00, ..., 5=20:00-24:00)
+        String in format "YYYY-MM-DD-HH" where HH is hour 0-23
     """
     ts = timestamp.rstrip('Z')
     try:
@@ -59,8 +58,7 @@ def utc_to_eastern_segment(timestamp: str) -> str:
         return timestamp[:10] + "-0"
 
     eastern_dt = dt.astimezone(EASTERN)
-    segment = eastern_dt.hour // 4  # 0-5
-    return eastern_dt.strftime("%Y-%m-%d") + f"-{segment}"
+    return eastern_dt.strftime("%Y-%m-%d") + f"-{eastern_dt.hour}"
 
 
 def get_hostname() -> str:
@@ -235,22 +233,22 @@ class HistoryStore:
         daily: Dict[str, Dict[str, Dict[str, str]]] = {}
 
         for entry in entries:
-            # Extract date and segment from timestamp, converting to Eastern timezone
-            segment_key = utc_to_eastern_segment(entry.timestamp)
-            date = segment_key[:10]  # YYYY-MM-DD portion
+            # Extract date and hour from timestamp, converting to Eastern timezone
+            hour_key = utc_to_eastern_hour(entry.timestamp)
+            date = hour_key[:10]  # YYYY-MM-DD portion
 
             if date not in daily:
                 daily[date] = {}
             if entry.model not in daily[date]:
-                daily[date][entry.model] = {"scenarios": {}, "segments": {}}
+                daily[date][entry.model] = {"scenarios": {}, "hours": {}}
 
             daily[date][entry.model]["scenarios"][entry.scenario] = entry.status
 
-            # Track segment-level status (0-5 for 4-hour periods)
-            segment = segment_key[-1]  # "0" through "5"
-            if segment not in daily[date][entry.model]["segments"]:
-                daily[date][entry.model]["segments"][segment] = []
-            daily[date][entry.model]["segments"][segment].append(entry.status)
+            # Track hourly status (0-23)
+            hour = hour_key.split("-")[-1]  # "0" through "23"
+            if hour not in daily[date][entry.model]["hours"]:
+                daily[date][entry.model]["hours"][hour] = []
+            daily[date][entry.model]["hours"][hour].append(entry.status)
 
         # Helper to compute worst status from a list of statuses
         def worst_status(statuses: List[str]) -> str:
@@ -272,15 +270,15 @@ class HistoryStore:
                 scenario_statuses = list(model_data["scenarios"].values())
                 overall = worst_status(scenario_statuses)
 
-                # Compute per-segment status (0-5 for 4-hour periods)
-                segment_summary = {}
-                for seg_num, seg_statuses in model_data["segments"].items():
-                    segment_summary[seg_num] = worst_status(seg_statuses)
+                # Compute per-hour status (0-23)
+                hours_summary = {}
+                for hour_num, hour_statuses in model_data["hours"].items():
+                    hours_summary[hour_num] = worst_status(hour_statuses)
 
                 summary[date][model] = {
                     "status": overall,
                     "scenarios": model_data["scenarios"],
-                    "segments": segment_summary,
+                    "hours": hours_summary,
                 }
 
         return summary

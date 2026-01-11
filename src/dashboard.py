@@ -781,8 +781,9 @@ def _generate_html(data: Dict[str, Any]) -> str:
 
     <script>
         let DATA = null;
-        let granularity = 4;  // Number of segments to show per day (1, 2, 3, 4, or 6)
-        const GRANULARITY_LABELS = {1: 'Daily', 2: '12h', 3: '8h', 4: '6h', 6: '4h'};
+        let granularity = 4;  // Number of segments to show per day
+        const GRANULARITY_LEVELS = [1, 2, 3, 4, 6, 8, 12, 24];
+        const GRANULARITY_LABELS = {1: 'Daily', 2: '12h', 3: '8h', 4: '6h', 6: '4h', 8: '3h', 12: '2h', 24: '1h'};
 
         async function loadData() {
             try {
@@ -846,12 +847,11 @@ def _generate_html(data: Dict[str, Any]) -> str:
             function onMove(e) {
                 const dy = (e.clientY || e.touches[0].clientY) - startY;
                 // Dragging down = more granularity, up = less
-                const steps = Math.round(dy / 20);
-                const levels = [1, 2, 3, 4, 6];
-                const startIdx = levels.indexOf(startGranularity);
-                const newIdx = Math.max(0, Math.min(levels.length - 1, startIdx + steps));
-                if (levels[newIdx] !== granularity) {
-                    granularity = levels[newIdx];
+                const steps = Math.round(dy / 15);
+                const startIdx = GRANULARITY_LEVELS.indexOf(startGranularity);
+                const newIdx = Math.max(0, Math.min(GRANULARITY_LEVELS.length - 1, startIdx + steps));
+                if (GRANULARITY_LEVELS[newIdx] !== granularity) {
+                    granularity = GRANULARITY_LEVELS[newIdx];
                     updateResizeLabel();
                     renderCalendar(document.getElementById('modelSelect').value);
                 }
@@ -886,26 +886,25 @@ def _generate_html(data: Dict[str, Any]) -> str:
         function getSegmentStatuses(date, model) {
             if (!DATA.daily[date]) return Array(granularity).fill(null);
 
-            // Map from 6 raw segments to current granularity
-            const rawSegments = 6;
-            const segmentsPerBucket = rawSegments / granularity;
+            // Map from 24 hourly slots to current granularity
+            const hoursPerSegment = 24 / granularity;
             const result = [];
 
             for (let i = 0; i < granularity; i++) {
                 const bucketStatuses = [];
-                for (let j = 0; j < segmentsPerBucket; j++) {
-                    const rawIdx = Math.floor(i * segmentsPerBucket + j);
+                for (let j = 0; j < hoursPerSegment; j++) {
+                    const hour = Math.floor(i * hoursPerSegment + j);
                     if (model === '__all__') {
                         // Aggregate across all models
                         Object.values(DATA.daily[date]).forEach(m => {
-                            if (m.segments && m.segments[rawIdx]) {
-                                bucketStatuses.push(m.segments[rawIdx]);
+                            if (m.hours && m.hours[hour]) {
+                                bucketStatuses.push(m.hours[hour]);
                             }
                         });
                     } else {
                         const d = DATA.daily[date][model];
-                        if (d && d.segments && d.segments[rawIdx]) {
-                            bucketStatuses.push(d.segments[rawIdx]);
+                        if (d && d.hours && d.hours[hour]) {
+                            bucketStatuses.push(d.hours[hour]);
                         }
                     }
                 }
