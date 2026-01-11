@@ -127,7 +127,7 @@ def generate_colab_notebook(
     scenario_display = scenario.upper().replace("_", " ")
     cells.append(make_cell("code", [
         "print('\\n' + '=' * 50)\n",
-        f"print('{scenario_display} TEST PASSED ✓')\n",
+        f"print('{scenario_display} TEST ' + 'PASSED ✓')\n",
         "print('=' * 50)\n",
     ]))
 
@@ -252,7 +252,7 @@ def _generate_validation_code(scenario: str) -> List[str]:
             "assert not torch.isnan(hidden).any(), 'Hidden state contains NaN values'\n",
             "assert not torch.isinf(hidden).any(), 'Hidden state contains Inf values'\n",
             "\n",
-            "print('Validation passed!')\n",
+            "print('Validation ' + 'passed!')\n",
         ]
     elif scenario == "generation":
         return [
@@ -263,7 +263,7 @@ def _generate_validation_code(scenario: str) -> List[str]:
             "assert len(generated_text) > len(prompt), 'No text was generated'\n",
             "assert generated_text.startswith(prompt[:20]), 'Generated text does not start with prompt'\n",
             "\n",
-            "print('Validation passed!')\n",
+            "print('Validation ' + 'passed!')\n",
         ]
     elif scenario == "hidden_states":
         return [
@@ -276,7 +276,7 @@ def _generate_validation_code(scenario: str) -> List[str]:
             "    assert not torch.isnan(state).any(), f'Layer {i} contains NaN'\n",
             "    assert not torch.isinf(state).any(), f'Layer {i} contains Inf'\n",
             "\n",
-            "print('Validation passed!')\n",
+            "print('Validation ' + 'passed!')\n",
         ]
     return []
 
