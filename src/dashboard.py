@@ -1074,8 +1074,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     const day = document.createElement('div');
                     day.className = 'calendar-day';
                     day.dataset.date = date;
-                    day.onmouseenter = showTip;
-                    day.onmouseleave = hideTip;
                     day.style.gap = '0';
 
                     // Get segment statuses for this date
@@ -1088,6 +1086,11 @@ def _generate_html(data: Dict[str, Any]) -> str:
                         seg.style.width = segSize + 'px';
                         seg.style.height = dayWidth + 'px';
                         if (status) seg.classList.add(status.toLowerCase());
+                        // Add data for segment-level tooltip
+                        seg.dataset.date = date;
+                        seg.dataset.segmentIdx = idx;
+                        seg.onmouseenter = showSegmentTip;
+                        seg.onmouseleave = hideTip;
                         day.appendChild(seg);
                     });
 
@@ -1190,6 +1193,83 @@ def _generate_html(data: Dict[str, Any]) -> str:
         }
 
         const tooltip = document.getElementById('tooltip');
+
+        // Format hour range for segment tooltip
+        function getSegmentTimeRange(segmentIdx) {
+            const hoursPerSegment = 24 / granularity;
+            const startHour = segmentIdx * hoursPerSegment;
+            const endHour = startHour + hoursPerSegment;
+            const fmt = h => (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
+            return fmt(startHour) + '-' + fmt(endHour);
+        }
+
+        function showSegmentTip(e) {
+            e.stopPropagation();
+            const date = e.target.dataset.date;
+            const segmentIdx = parseInt(e.target.dataset.segmentIdx);
+            const model = document.getElementById('modelSelect').value;
+            const timeRange = getSegmentTimeRange(segmentIdx);
+
+            let html = '<strong>' + date + '</strong> <span style="color:var(--text-muted)">' + timeRange + '</span>';
+
+            if (DATA.daily[date]) {
+                const hoursPerSegment = 24 / granularity;
+                const startHour = segmentIdx * hoursPerSegment;
+                const endHour = startHour + hoursPerSegment;
+
+                if (model === '__all__') {
+                    // Aggregate all models for this time segment
+                    const modelStatuses = {};
+                    Object.entries(DATA.daily[date]).forEach(([m, d]) => {
+                        if (d.hours) {
+                            for (let h = startHour; h < endHour; h++) {
+                                if (d.hours[h]) {
+                                    const shortName = m.split('/').pop();
+                                    if (!modelStatuses[shortName]) modelStatuses[shortName] = [];
+                                    modelStatuses[shortName].push(d.hours[h]);
+                                }
+                            }
+                        }
+                    });
+                    const entries = Object.entries(modelStatuses).slice(0, 6);
+                    if (entries.length === 0) {
+                        html += '<div class="tip-status">No tests in this period</div>';
+                    } else {
+                        entries.forEach(([m, statuses]) => {
+                            const worst = statuses.includes('FAILED') ? 'FAILED' :
+                                         statuses.includes('SLOW') ? 'SLOW' : 'OK';
+                            html += '<div class="tip-status">' + m + ': ' + worst + '</div>';
+                        });
+                        if (Object.keys(modelStatuses).length > 6) html += '<div class="tip-status">...</div>';
+                    }
+                } else {
+                    const d = DATA.daily[date][model];
+                    if (d && d.hours) {
+                        const hourStatuses = [];
+                        for (let h = startHour; h < endHour; h++) {
+                            if (d.hours[h]) hourStatuses.push(d.hours[h]);
+                        }
+                        if (hourStatuses.length === 0) {
+                            html += '<div class="tip-status">No tests in this period</div>';
+                        } else {
+                            const worst = hourStatuses.includes('FAILED') ? 'FAILED' :
+                                         hourStatuses.includes('SLOW') ? 'SLOW' : 'OK';
+                            html += '<div class="tip-status">Status: ' + worst + '</div>';
+                        }
+                    } else {
+                        html += '<div class="tip-status">No tests in this period</div>';
+                    }
+                }
+            } else {
+                html += '<div class="tip-status">No tests run</div>';
+            }
+
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            tooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 300) + 'px';
+            tooltip.style.top = (e.clientY + 12) + 'px';
+        }
+
         function showTip(e) {
             const date = e.target.dataset.date;
             const model = document.getElementById('modelSelect').value;
