@@ -270,612 +270,677 @@ def generate_dashboard_html(
 
 
 def _generate_html(data: Dict[str, Any]) -> str:
-    """Generate the HTML content.
-
-    The HTML is static and loads data from dashboard_data.json.
-    """
-    return '''<!DOCTYPE html>
+    """Generate the HTML content."""
+    # Use a simpler approach - no f-string escaping needed
+    html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NDIF Monitor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
     <style>
         :root {
-            --ok: #22c55e;
-            --slow: #eab308;
+            --ok: #10b981;
+            --slow: #f59e0b;
             --degraded: #f97316;
             --failed: #ef4444;
             --unavailable: #6b7280;
-            --empty: #1f2937;
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f1f5f9;
-            --text-dim: #94a3b8;
-            --border: #334155;
+            --bg: #0c0c0c;
+            --card: #171717;
+            --card-hover: #1f1f1f;
+            --text: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --border: #27272a;
             --accent: #3b82f6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
             background: var(--bg);
             color: var(--text);
-            padding: 0;
-            line-height: 1.6;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        h1, h2, h3 { font-weight: 600; }
-        h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-        h2 { font-size: 1.1rem; color: var(--text); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
 
-        /* Header with summary */
-        .page-header {
-            background: linear-gradient(135deg, var(--card) 0%, var(--bg) 100%);
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* Header */
+        header {
             border-bottom: 1px solid var(--border);
-            padding: 2rem 0;
+            padding: 1.5rem 0;
             margin-bottom: 2rem;
         }
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-        .header-top {
+        .header-inner {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 1.5rem;
         }
-        .header-title h1 { color: var(--text); }
-        .header-title p { color: var(--text-dim); font-size: 0.9rem; }
-        .header-meta { text-align: right; color: var(--text-dim); font-size: 0.85rem; }
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        .header-meta {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .header-meta .version {
+            color: var(--text-secondary);
+            font-family: ui-monospace, monospace;
+        }
 
-        /* Summary stats */
-        .summary-stats {
+        /* Summary Stats */
+        .summary {
             display: flex;
             gap: 2rem;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }
-        .stat-item {
+        .stat {
             display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            align-items: baseline;
+            gap: 0.5rem;
         }
-        .stat-number {
-            font-size: 2rem;
+        .stat-value {
+            font-size: 2.5rem;
             font-weight: 700;
             line-height: 1;
         }
-        .stat-number.ok { color: var(--ok); }
-        .stat-number.failed { color: var(--failed); }
-        .stat-number.slow { color: var(--slow); }
+        .stat-value.ok { color: var(--ok); }
+        .stat-value.slow { color: var(--slow); }
+        .stat-value.failed { color: var(--failed); }
+        .stat-value.total { color: var(--text-secondary); }
         .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-dim);
+            font-size: 0.875rem;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
-        .timestamp { color: var(--text-dim); font-size: 0.875rem; }
-        .card {{
-            background: var(--card);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border);
-        }}
-        .legend {{
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }}
-        .legend-item {{
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.875rem;
-        }}
-        .legend-color {{
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-        }}
-
-        /* Calendar heatmap */
-        .calendar-container {{
-            overflow-x: auto;
-            padding-bottom: 1rem;
-        }}
-        .calendar {{
-            display: flex;
-            gap: 2px;
-        }}
-        .calendar-week {{
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }}
-        .calendar-day {{
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }}
-        .calendar-day:hover {{
-            transform: scale(1.5);
-            z-index: 10;
-        }}
-        .calendar-day.empty {{ background: var(--empty); }}
-        .calendar-day.ok {{ background: var(--ok); }}
-        .calendar-day.slow {{ background: var(--slow); }}
-        .calendar-day.degraded {{ background: var(--degraded); }}
-        .calendar-day.failed {{ background: var(--failed); }}
-        .calendar-day.unavailable {{ background: var(--unavailable); }}
-
-        .month-labels {{
-            display: flex;
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            margin-bottom: 0.5rem;
-            padding-left: 2px;
-        }}
-        .month-label {{
-            flex: 1;
-            min-width: 50px;
-        }}
-
-        /* Model selector */
-        .model-selector {{
-            margin-bottom: 1rem;
-        }}
-        .model-selector select {{
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 0.5rem 1rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            cursor: pointer;
-        }}
-
-        /* Current status grid */
-        .status-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1rem;
-        }}
-        .model-card {{
-            background: var(--bg);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            border: 1px solid var(--border);
-        }}
-        .model-name {{
-            font-weight: 600;
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-            word-break: break-all;
-        }}
-        .model-status {{
-            display: inline-block;
-            padding: 0.125rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }}
-        .model-status.ok {{ background: var(--ok); color: #000; }}
-        .model-status.slow {{ background: var(--slow); color: #000; }}
-        .model-status.degraded {{ background: var(--degraded); color: #000; }}
-        .model-status.failed {{ background: var(--failed); }}
-        .model-status.unavailable {{ background: var(--unavailable); }}
-
-        .scenarios {{
-            margin-top: 0.75rem;
-            font-size: 0.75rem;
-        }}
-        .scenario {{
+        /* Section */
+        section { margin-bottom: 3rem; }
+        .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.25rem 0;
-            border-bottom: 1px solid var(--border);
-        }}
-        .scenario:last-child {{ border-bottom: none; }}
-        .scenario-status {{
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .section-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+        .legend-dot.ok { background: var(--ok); }
+        .legend-dot.slow { background: var(--slow); }
+        .legend-dot.failed { background: var(--failed); }
+        .legend-dot.unavailable { background: var(--unavailable); }
+        .legend-dot.empty { background: var(--border); }
+
+        /* Calendar */
+        .calendar-wrapper { overflow-x: auto; padding-bottom: 0.5rem; }
+        .calendar { display: flex; gap: 3px; }
+        .calendar-week { display: flex; flex-direction: column; gap: 3px; }
+        .calendar-day {
+            width: 11px;
+            height: 11px;
+            border-radius: 2px;
+            background: var(--border);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .calendar-day:hover {
+            transform: scale(1.8);
+            box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text-muted);
+            z-index: 10;
+            position: relative;
+        }
+        .calendar-day.ok { background: var(--ok); }
+        .calendar-day.slow { background: var(--slow); }
+        .calendar-day.degraded { background: var(--degraded); }
+        .calendar-day.failed { background: var(--failed); }
+        .calendar-day.unavailable { background: var(--unavailable); }
+
+        .model-filter select {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .model-filter select:hover { border-color: var(--text-muted); }
+
+        /* Model Grid */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+        .model-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem 1.25rem;
+            transition: border-color 0.15s;
+        }
+        .model-card:hover { border-color: var(--text-muted); }
+        .model-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            gap: 0.5rem;
+        }
+        .model-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+        .model-name .org {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+        .status-badge.ok { background: var(--ok); color: #000; }
+        .status-badge.slow { background: var(--slow); color: #000; }
+        .status-badge.degraded { background: var(--degraded); color: #000; }
+        .status-badge.failed { background: var(--failed); color: #fff; }
+        .status-badge.unavailable { background: var(--unavailable); color: #fff; }
+
+        .model-scenarios { margin-top: 0.75rem; }
+        .scenario-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+        .scenario-name { color: var(--text-secondary); }
+        .scenario-status {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }}
-        .status-dot {{
+        }
+        .scenario-time {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-        }}
-        .status-dot.ok {{ background: var(--ok); }}
-        .status-dot.slow {{ background: var(--slow); }}
-        .status-dot.degraded {{ background: var(--degraded); }}
-        .status-dot.failed {{ background: var(--failed); }}
-        .status-dot.unavailable {{ background: var(--unavailable); }}
+        }
+        .status-dot.ok { background: var(--ok); }
+        .status-dot.slow { background: var(--slow); }
+        .status-dot.degraded { background: var(--degraded); }
+        .status-dot.failed { background: var(--failed); }
+        .status-dot.unavailable { background: var(--unavailable); }
 
-        .last-success {{ color: var(--text-dim); font-size: 0.7rem; }}
+        .model-footer {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+        }
+        .model-footer .updated { color: var(--text-muted); }
+        .colab-link {
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
 
-        /* Failures table */
-        .failures-table {{
+        /* Failures Table */
+        .failures-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.875rem;
-        }}
-        .failures-table th, .failures-table td {{
-            padding: 0.75rem;
+            font-size: 0.85rem;
+        }
+        .failures-table th {
             text-align: left;
-            border-bottom: 1px solid var(--border);
-        }}
-        .failures-table th {{
-            color: var(--text-dim);
+            padding: 0.75rem 1rem;
+            color: var(--text-muted);
             font-weight: 500;
-        }}
-        .colab-link {{
-            color: #60a5fa;
-            text-decoration: none;
-        }}
-        .colab-link:hover {{ text-decoration: underline; }}
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+        .failures-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .failures-table tr:hover td { background: var(--card); }
+        .error-details {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .no-failures {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
 
         /* Tooltip */
-        .tooltip {{
+        .tooltip {
             position: fixed;
             background: var(--card);
             border: 1px solid var(--border);
             padding: 0.5rem 0.75rem;
-            border-radius: 0.25rem;
+            border-radius: 0.375rem;
             font-size: 0.75rem;
             pointer-events: none;
-            z-index: 100;
-            max-width: 300px;
-        }}
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-width: 280px;
+        }
+        .tooltip strong { color: var(--text); }
+        .tooltip .tip-status { margin-top: 0.25rem; }
 
-        @media (max-width: 640px) {{
-            body {{ padding: 1rem; }}
-            .calendar-day {{ width: 8px; height: 8px; }}
-        }}
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        footer a { color: var(--text-secondary); }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 640px) {
+            .container { padding: 0 1rem; }
+            .summary { gap: 1.5rem; }
+            .stat-value { font-size: 2rem; }
+            .model-grid { grid-template-columns: 1fr; }
+            .calendar-day { width: 8px; height: 8px; }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div>
-            <h1>NDIF Monitor Dashboard</h1>
-            <div class="timestamp">Last updated: <span id="updated"></span> <span id="host" style="opacity:0.6"></span></div>
+    <header>
+        <div class="container">
+            <div class="header-inner">
+                <div class="header-title">
+                    <h1>NDIF Monitor</h1>
+                    <p>End-to-end testing of <a href="https://nnsight.net" target="_blank">nnsight</a> + <a href="https://ndif.us" target="_blank">NDIF</a></p>
+                </div>
+                <div class="header-meta">
+                    <div>Updated: <span id="updated">-</span></div>
+                    <div>nnsight <span class="version" id="version">-</span></div>
+                    <div id="hostInfo"></div>
+                </div>
+            </div>
         </div>
-        <div class="legend">
-            <div class="legend-item"><div class="legend-color" style="background:var(--ok)"></div> OK</div>
-            <div class="legend-item"><div class="legend-color" style="background:var(--slow)"></div> Slow</div>
-            <div class="legend-item"><div class="legend-color" style="background:var(--degraded)"></div> Degraded</div>
-            <div class="legend-item"><div class="legend-color" style="background:var(--failed)"></div> Failed</div>
-            <div class="legend-item"><div class="legend-color" style="background:var(--unavailable)"></div> Unavailable</div>
-            <div class="legend-item"><div class="legend-color" style="background:var(--empty)"></div> No data</div>
-        </div>
-    </div>
+    </header>
 
-    <div class="card">
-        <h2>Status History</h2>
-        <div class="model-selector">
-            <select id="modelSelect">
-                <option value="__all__">All Models (worst status per day)</option>
-            </select>
+    <main class="container">
+        <div class="summary" id="summary">
+            <div class="stat"><span class="stat-value total" id="statTotal">-</span><span class="stat-label">Models</span></div>
+            <div class="stat"><span class="stat-value ok" id="statOk">-</span><span class="stat-label">OK</span></div>
+            <div class="stat"><span class="stat-value slow" id="statSlow">-</span><span class="stat-label">Slow</span></div>
+            <div class="stat"><span class="stat-value failed" id="statFailed">-</span><span class="stat-label">Failed</span></div>
         </div>
-        <div class="month-labels" id="monthLabels"></div>
-        <div class="calendar-container">
-            <div class="calendar" id="calendar"></div>
+
+        <section>
+            <div class="section-header">
+                <h2>Status History</h2>
+                <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+                    <div class="legend">
+                        <div class="legend-item"><div class="legend-dot ok"></div>OK</div>
+                        <div class="legend-item"><div class="legend-dot slow"></div>Slow</div>
+                        <div class="legend-item"><div class="legend-dot failed"></div>Failed</div>
+                        <div class="legend-item"><div class="legend-dot empty"></div>No data</div>
+                    </div>
+                    <div class="model-filter">
+                        <select id="modelSelect">
+                            <option value="__all__">All models</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="calendar-wrapper">
+                <div class="calendar" id="calendar"></div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <h2>Current Status</h2>
+            </div>
+            <div class="model-grid" id="modelGrid"></div>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <h2>Recent Failures</h2>
+            </div>
+            <table class="failures-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Model</th>
+                        <th>Test</th>
+                        <th>Error</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="failuresBody"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <a href="https://github.com/davidbau/ndif-monitor" target="_blank">GitHub</a> ·
+            <a href="https://nnsight.net/documentation" target="_blank">nnsight docs</a> ·
+            <a href="https://ndif.us" target="_blank">NDIF</a>
         </div>
-    </div>
-
-    <div class="card">
-        <h2>Current Status</h2>
-        <div class="status-grid" id="statusGrid"></div>
-    </div>
-
-    <div class="card">
-        <h2>Recent Failures</h2>
-        <table class="failures-table" id="failuresTable">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Model</th>
-                    <th>Scenario</th>
-                    <th>Error</th>
-                    <th>Reproduce</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
+    </footer>
 
     <div class="tooltip" id="tooltip" style="display:none"></div>
-
-    <div id="loading" style="text-align:center;padding:2rem;color:var(--text-dim)">Loading data...</div>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        Loading dashboard data...
+    </div>
 
     <script>
         let DATA = null;
 
-        // Load data from external JSON file
         async function loadData() {
             try {
-                const response = await fetch('data/status.json');
-                if (!response.ok) throw new Error('Failed to load data');
-                DATA = await response.json();
+                const res = await fetch('data/status.json');
+                if (!res.ok) throw new Error('Failed to load');
+                DATA = await res.json();
                 document.getElementById('loading').style.display = 'none';
-                initDashboard();
-            } catch (error) {
+                render();
+            } catch (e) {
                 document.getElementById('loading').innerHTML =
-                    '<span style="color:var(--failed)">Error loading data: ' + error.message + '</span>';
+                    '<div style="color:var(--failed)">Error loading data</div><div style="margin-top:0.5rem">' + e.message + '</div>';
             }
         }
 
-        function initDashboard() {
-            // Initialize
-            document.getElementById('updated').textContent = new Date(DATA.generated).toLocaleString();
+        function render() {
+            // Header info
+            document.getElementById('updated').textContent = formatTime(DATA.generated);
+            if (DATA.nnsight_version) {
+                document.getElementById('version').textContent = 'v' + DATA.nnsight_version;
+            }
             if (DATA.host) {
-                const hostInfo = DATA.user ? DATA.user + '@' + DATA.host : DATA.host;
-                document.getElementById('host').textContent = '(' + hostInfo + ')';
+                const info = DATA.user ? DATA.user + '@' + DATA.host : DATA.host;
+                document.getElementById('hostInfo').textContent = info;
             }
 
-            // Populate model selector
-            const modelSelect = document.getElementById('modelSelect');
-            DATA.models.forEach(model => {
-                const opt = document.createElement('option');
-                opt.value = model;
-                opt.textContent = model;
-                modelSelect.appendChild(opt);
+            // Summary stats
+            const stats = {total: 0, ok: 0, slow: 0, failed: 0};
+            DATA.current.forEach(m => {
+                stats.total++;
+                const s = m.overall_status.toLowerCase();
+                if (s === 'ok') stats.ok++;
+                else if (s === 'slow') stats.slow++;
+                else if (s === 'failed' || s === 'unavailable' || s === 'degraded') stats.failed++;
             });
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statOk').textContent = stats.ok;
+            document.getElementById('statSlow').textContent = stats.slow;
+            document.getElementById('statFailed').textContent = stats.failed;
 
-            // Event listeners
-            modelSelect.addEventListener('change', () => renderCalendar(modelSelect.value));
+            // Model selector
+            const select = document.getElementById('modelSelect');
+            DATA.models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m.split('/').pop();
+                select.appendChild(opt);
+            });
+            select.onchange = () => renderCalendar(select.value);
 
-            // Initial render
             renderCalendar('__all__');
-            renderStatusGrid();
+            renderModels();
             renderFailures();
         }
 
-        // Get status for a date/model combination
         function getStatus(date, model) {
             if (!DATA.daily[date]) return null;
-            if (model === '__all__') {{
-                // Return worst status across all models
+            if (model === '__all__') {
                 const statuses = Object.values(DATA.daily[date]).map(m => m.status);
-                if (statuses.includes('UNAVAILABLE')) return 'UNAVAILABLE';
-                if (statuses.includes('FAILED')) return 'FAILED';
+                if (statuses.includes('FAILED') || statuses.includes('UNAVAILABLE')) return 'FAILED';
                 if (statuses.includes('DEGRADED')) return 'DEGRADED';
                 if (statuses.includes('SLOW')) return 'SLOW';
-                if (statuses.length > 0) return 'OK';
-                return null;
-            }}
-            const modelData = DATA.daily[date][model];
-            return modelData ? modelData.status : null;
-        }}
+                return statuses.length ? 'OK' : null;
+            }
+            const d = DATA.daily[date][model];
+            return d ? d.status : null;
+        }
 
-        // Render calendar
-        function renderCalendar(selectedModel) {{
-            const calendar = document.getElementById('calendar');
-            const monthLabels = document.getElementById('monthLabels');
-            calendar.innerHTML = '';
-            monthLabels.innerHTML = '';
+        function renderCalendar(model) {
+            const cal = document.getElementById('calendar');
+            cal.innerHTML = '';
 
-            // Group dates by week
             const weeks = [];
-            let currentWeek = [];
-            let currentMonth = '';
-            const months = [];
-
-            DATA.dates.forEach((date, i) => {{
+            let week = [];
+            DATA.dates.forEach(date => {
                 const d = new Date(date + 'T00:00:00Z');
-                const dayOfWeek = d.getUTCDay();
+                if (d.getUTCDay() === 0 && week.length) {
+                    weeks.push(week);
+                    week = [];
+                }
+                week.push(date);
+            });
+            if (week.length) weeks.push(week);
 
-                // Track months for labels
-                const month = date.substring(0, 7);
-                if (month !== currentMonth) {{
-                    months.push({{ month, week: weeks.length }});
-                    currentMonth = month;
-                }}
-
-                // Start new week on Sunday
-                if (dayOfWeek === 0 && currentWeek.length > 0) {{
-                    weeks.push(currentWeek);
-                    currentWeek = [];
-                }}
-
-                currentWeek.push(date);
-            }});
-            if (currentWeek.length > 0) weeks.push(currentWeek);
-
-            // Render month labels
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            months.forEach((m, i) => {{
-                const label = document.createElement('span');
-                label.className = 'month-label';
-                const monthNum = parseInt(m.month.split('-')[1]) - 1;
-                label.textContent = monthNames[monthNum];
-                monthLabels.appendChild(label);
-            }});
-
-            // Render weeks
-            weeks.forEach(week => {{
+            weeks.forEach(w => {
                 const weekEl = document.createElement('div');
                 weekEl.className = 'calendar-week';
 
-                // Pad start of first week
-                const firstDay = new Date(week[0] + 'T00:00:00Z').getUTCDay();
-                for (let i = 0; i < firstDay; i++) {{
+                // Pad first week
+                const first = new Date(w[0] + 'T00:00:00Z').getUTCDay();
+                for (let i = 0; i < first; i++) {
                     const pad = document.createElement('div');
-                    pad.className = 'calendar-day empty';
+                    pad.className = 'calendar-day';
                     weekEl.appendChild(pad);
-                }}
+                }
 
-                week.forEach(date => {{
+                w.forEach(date => {
                     const day = document.createElement('div');
                     day.className = 'calendar-day';
-
-                    const status = getStatus(date, selectedModel);
-                    if (status) {{
-                        day.classList.add(status.toLowerCase());
-                    }} else {{
-                        day.classList.add('empty');
-                    }}
-
+                    const status = getStatus(date, model);
+                    if (status) day.classList.add(status.toLowerCase());
                     day.dataset.date = date;
-                    day.addEventListener('mouseenter', showTooltip);
-                    day.addEventListener('mouseleave', hideTooltip);
+                    day.onmouseenter = showTip;
+                    day.onmouseleave = hideTip;
                     weekEl.appendChild(day);
-                }});
+                });
+                cal.appendChild(weekEl);
+            });
+        }
 
-                calendar.appendChild(weekEl);
-            }});
-        }}
-
-        // Tooltip handlers
-        const tooltip = document.getElementById('tooltip');
-
-        function showTooltip(e) {{
-            const date = e.target.dataset.date;
-            const model = modelSelect.value;
-
-            let content = `<strong>${{date}}</strong><br>`;
-
-            if (DATA.daily[date]) {{
-                if (model === '__all__') {{
-                    const models = Object.entries(DATA.daily[date]);
-                    models.slice(0, 5).forEach(([m, data]) => {{
-                        content += `${{m.split('/').pop()}}: ${{data.status}}<br>`;
-                    }});
-                    if (models.length > 5) content += `... and ${{models.length - 5}} more`;
-                }} else {{
-                    const data = DATA.daily[date][model];
-                    if (data) {{
-                        content += `Status: ${{data.status}}<br>`;
-                        if (data.scenarios) {{
-                            Object.entries(data.scenarios).forEach(([s, st]) => {{
-                                content += `${{s}}: ${{st}}<br>`;
-                            }});
-                        }}
-                    }} else {{
-                        content += 'No data';
-                    }}
-                }}
-            }} else {{
-                content += 'No data';
-            }}
-
-            tooltip.innerHTML = content;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (e.clientX + 10) + 'px';
-            tooltip.style.top = (e.clientY + 10) + 'px';
-        }}
-
-        function hideTooltip() {{
-            tooltip.style.display = 'none';
-        }}
-
-        // Render current status grid
-        function renderStatusGrid() {{
-            const grid = document.getElementById('statusGrid');
+        function renderModels() {
+            const grid = document.getElementById('modelGrid');
             grid.innerHTML = '';
 
-            DATA.current.forEach(model => {{
+            DATA.current.forEach(m => {
+                const st = m.overall_status.toLowerCase();
+                const [org, name] = m.model.includes('/') ? m.model.split('/') : ['', m.model];
+
+                let scenarios = '';
+                Object.entries(m.scenarios || {}).forEach(([k, v]) => {
+                    const dur = v.duration_ms ? (v.duration_ms / 1000).toFixed(1) + 's' : '';
+                    scenarios += '<div class="scenario-row">' +
+                        '<span class="scenario-name">' + k + '</span>' +
+                        '<span class="scenario-status">' +
+                        '<span class="scenario-time">' + dur + '</span>' +
+                        '<span class="status-dot ' + v.status.toLowerCase() + '"></span>' +
+                        '</span></div>';
+                });
+
+                const updated = m.last_updated ? formatTimeAgo(m.last_updated) : '-';
+                const colabUrl = 'https://colab.research.google.com/github/' + DATA.github_repo + '/blob/main/notebooks/test_basic_trace.ipynb';
+
                 const card = document.createElement('div');
                 card.className = 'model-card';
-
-                const statusClass = model.overall_status.toLowerCase();
-                let lastOkStr = '';
-                if (model.last_all_ok) {{
-                    const lastOk = new Date(model.last_all_ok);
-                    const ago = Math.floor((Date.now() - lastOk) / 1000 / 60);
-                    if (ago < 60) lastOkStr = `${{ago}}m ago`;
-                    else if (ago < 1440) lastOkStr = `${{Math.floor(ago/60)}}h ago`;
-                    else lastOkStr = `${{Math.floor(ago/1440)}}d ago`;
-                }}
-
-                let scenariosHtml = '';
-                Object.entries(model.scenarios || {{}}).forEach(([name, s]) => {{
-                    const st = s.status.toLowerCase();
-                    let lastSuccessStr = '';
-                    if (s.last_success) {{
-                        const ls = new Date(s.last_success);
-                        const ago = Math.floor((Date.now() - ls) / 1000 / 60);
-                        if (ago < 60) lastSuccessStr = `OK ${{ago}}m ago`;
-                        else if (ago < 1440) lastSuccessStr = `OK ${{Math.floor(ago/60)}}h ago`;
-                        else lastSuccessStr = `OK ${{Math.floor(ago/1440)}}d ago`;
-                    }}
-                    scenariosHtml += `
-                        <div class="scenario">
-                            <span>${{name}}</span>
-                            <span class="scenario-status">
-                                <span class="last-success">${{lastSuccessStr}}</span>
-                                <span class="status-dot ${{st}}"></span>
-                            </span>
-                        </div>
-                    `;
-                }});
-
-                // Colab link for testing this model
-                const colabUrl = `https://colab.research.google.com/github/${{DATA.github_repo}}/blob/main/notebooks/test_basic_trace.ipynb`;
-
-                card.innerHTML = `
-                    <div class="model-name">${{model.model}}</div>
-                    <span class="model-status ${{statusClass}}">${{model.overall_status}}</span>
-                    ${{lastOkStr ? `<span class="last-success" style="margin-left:0.5rem">All OK ${{lastOkStr}}</span>` : ''}}
-                    <a href="${{colabUrl}}" target="_blank" class="colab-link" style="float:right;font-size:0.75rem">Test in Colab</a>
-                    <div class="scenarios">${{scenariosHtml}}</div>
-                `;
-
+                card.innerHTML =
+                    '<div class="model-card-header">' +
+                    '<div class="model-name">' + (org ? '<span class="org">' + org + '/</span>' : '') + name + '</div>' +
+                    '<span class="status-badge ' + st + '">' + m.overall_status + '</span>' +
+                    '</div>' +
+                    '<div class="model-scenarios">' + scenarios + '</div>' +
+                    '<div class="model-footer">' +
+                    '<span class="updated">Updated ' + updated + '</span>' +
+                    '<a href="' + colabUrl + '" target="_blank" class="colab-link">Test in Colab →</a>' +
+                    '</div>';
                 grid.appendChild(card);
-            }});
-        }}
+            });
+        }
 
-        // Render failures table
-        function renderFailures() {{
-            const tbody = document.querySelector('#failuresTable tbody');
+        function renderFailures() {
+            const tbody = document.getElementById('failuresBody');
             tbody.innerHTML = '';
 
-            if (DATA.failures.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim)">No recent failures</td></tr>';
+            if (!DATA.failures.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-failures">No recent failures - all tests passing!</td></tr>';
                 return;
-            }}
+            }
 
-            DATA.failures.forEach(f => {{
+            DATA.failures.forEach(f => {
+                const notebook = {basic_trace: 'test_basic_trace.ipynb', generation: 'test_generation.ipynb', hidden_states: 'test_hidden_states.ipynb'}[f.scenario] || 'test_' + f.scenario + '.ipynb';
+                const colabUrl = 'https://colab.research.google.com/github/' + DATA.github_repo + '/blob/main/notebooks/' + notebook;
+
                 const tr = document.createElement('tr');
-                const time = new Date(f.timestamp).toLocaleString();
-                const shortModel = f.model.split('/').pop();
-
-                // Generate Colab link
-                const notebookMap = {{
-                    'basic_trace': 'test_basic_trace.ipynb',
-                    'generation': 'test_generation.ipynb',
-                    'hidden_states': 'test_hidden_states.ipynb'
-                }};
-                const notebook = notebookMap[f.scenario] || `test_${{f.scenario}}.ipynb`;
-                const colabUrl = `https://colab.research.google.com/github/${{DATA.github_repo}}/blob/main/notebooks/${{notebook}}`;
-
-                tr.innerHTML = `
-                    <td>${{time}}</td>
-                    <td title="${{f.model}}">${{shortModel}}</td>
-                    <td>${{f.scenario}}</td>
-                    <td title="${{f.details || ''}}">${{f.error_category || f.status}}</td>
-                    <td><a href="${{colabUrl}}" target="_blank" class="colab-link">Open in Colab</a></td>
-                `;
+                tr.innerHTML =
+                    '<td>' + formatTime(f.timestamp) + '</td>' +
+                    '<td>' + f.model.split('/').pop() + '</td>' +
+                    '<td>' + f.scenario + '</td>' +
+                    '<td><span class="error-details" title="' + (f.details || '').replace(/"/g, '&quot;') + '">' + (f.error_category || f.status) + '</span></td>' +
+                    '<td><a href="' + colabUrl + '" target="_blank" class="colab-link">Reproduce →</a></td>';
                 tbody.appendChild(tr);
-            }});
-        }}
+            });
+        }
 
-        // Start loading data
+        function formatTime(iso) {
+            const d = new Date(iso);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        }
+
+        function formatTimeAgo(iso) {
+            const mins = Math.floor((Date.now() - new Date(iso)) / 60000);
+            if (mins < 60) return mins + 'm ago';
+            if (mins < 1440) return Math.floor(mins / 60) + 'h ago';
+            return Math.floor(mins / 1440) + 'd ago';
+        }
+
+        const tooltip = document.getElementById('tooltip');
+        function showTip(e) {
+            const date = e.target.dataset.date;
+            const model = document.getElementById('modelSelect').value;
+            let html = '<strong>' + date + '</strong>';
+
+            if (DATA.daily[date]) {
+                if (model === '__all__') {
+                    const entries = Object.entries(DATA.daily[date]).slice(0, 6);
+                    entries.forEach(([m, d]) => {
+                        html += '<div class="tip-status">' + m.split('/').pop() + ': ' + d.status + '</div>';
+                    });
+                    if (Object.keys(DATA.daily[date]).length > 6) html += '<div class="tip-status">...</div>';
+                } else {
+                    const d = DATA.daily[date][model];
+                    if (d) {
+                        html += '<div class="tip-status">Status: ' + d.status + '</div>';
+                        if (d.scenarios) {
+                            Object.entries(d.scenarios).forEach(([k, v]) => {
+                                html += '<div class="tip-status">' + k + ': ' + v + '</div>';
+                            });
+                        }
+                    }
+                }
+            } else {
+                html += '<div class="tip-status">No tests run</div>';
+            }
+
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            tooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 300) + 'px';
+            tooltip.style.top = (e.clientY + 12) + 'px';
+        }
+
+        function hideTip() { tooltip.style.display = 'none'; }
+
         loadData();
     </script>
 </body>
-</html>
-'''
+</html>"""
+    return html
 
 
 def generate_dashboard(
