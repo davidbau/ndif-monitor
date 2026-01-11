@@ -62,21 +62,49 @@ load_env_local()
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.models import get_available_models, print_status_summary, fetch_ndif_status
+from src.models import get_available_models, print_status_summary, fetch_ndif_status, BASELINE_MODELS
 from src.runner import run_monitor, MonitorRunner
 from src.dashboard import generate_dashboard
+from src.notebook_generator import generate_all_colab_notebooks
 
 import shutil
 import subprocess
 
 
-def deploy_dashboard(results_dir: Path, deploy_path: str) -> None:
+def generate_and_commit_colab_notebooks(
+    notebooks_dir: Path,
+    models: list,
+    github_repo: str,
+) -> None:
+    """Generate Colab notebooks for all models and commit them.
+
+    Args:
+        notebooks_dir: Base notebooks directory
+        models: List of model names to generate notebooks for
+        github_repo: GitHub repo name for notebook metadata
+    """
+    colab_dir = notebooks_dir / "colab"
+
+    print(f"\nGenerating Colab notebooks for {len(models)} models...")
+    results = generate_all_colab_notebooks(
+        models=models,
+        output_dir=colab_dir,
+        scenarios=["basic_trace", "generation", "hidden_states"],
+    )
+
+    # Count total notebooks generated
+    total = sum(len(paths) for paths in results.values())
+    print(f"\nGenerated {total} Colab notebooks in {colab_dir}/")
+
+
+def deploy_dashboard(results_dir: Path, deploy_path: str, notebooks_dir: Path = None) -> None:
     """Deploy dashboard files to target directory.
 
     Copies:
     - index.html (dashboard)
     - data/status.json (dashboard data)
     - data/models/*.json (per-model status files)
+    - notebooks/colab/* (Colab notebooks for reproducibility)
     """
     deploy_dir = Path(deploy_path)
 
@@ -109,6 +137,18 @@ def deploy_dashboard(results_dir: Path, deploy_path: str) -> None:
 
     if model_count > 0:
         print(f"  Deployed: {model_count} model status files to data/models/")
+
+    # Copy Colab notebooks if available
+    if notebooks_dir:
+        colab_src = notebooks_dir / "colab"
+        if colab_src.exists():
+            colab_dst = deploy_dir / "notebooks"
+            if colab_dst.exists():
+                shutil.rmtree(colab_dst)
+            shutil.copytree(colab_src, colab_dst)
+            # Count notebooks
+            nb_count = len(list(colab_dst.rglob("*.ipynb")))
+            print(f"  Deployed: {nb_count} Colab notebooks to notebooks/")
 
     # Set permissions for web serving (chmod a+rX)
     try:
@@ -224,6 +264,12 @@ Examples:
         help="GitHub repo for Colab links (default: davidbau/ndif-monitor)",
     )
 
+    parser.add_argument(
+        "--generate-notebooks",
+        action="store_true",
+        help="Generate Colab notebooks for all tracked models",
+    )
+
     args = parser.parse_args()
 
     # Set up results directory
@@ -240,6 +286,21 @@ Examples:
         runner.print_all_statuses()
         return 0
 
+    # Set up notebooks directory early (needed for several modes)
+    notebooks_dir = Path(args.notebooks_dir)
+    if not notebooks_dir.is_absolute():
+        notebooks_dir = Path(__file__).parent / notebooks_dir
+
+    # Generate notebooks mode
+    if args.generate_notebooks:
+        print("Generating Colab notebooks for all baseline models...")
+        generate_and_commit_colab_notebooks(
+            notebooks_dir=notebooks_dir,
+            models=BASELINE_MODELS,
+            github_repo=args.github_repo,
+        )
+        return 0
+
     # Dashboard only mode
     if args.dashboard_only:
         print("Generating dashboard from existing history...")
@@ -250,7 +311,7 @@ Examples:
         print(f"Dashboard generated: {dashboard_path}")
 
         if args.deploy:
-            deploy_dashboard(results_dir, args.deploy)
+            deploy_dashboard(results_dir, args.deploy, notebooks_dir)
 
         return 0
 
@@ -279,11 +340,6 @@ Examples:
 
     if args.status_only:
         return 0
-
-    # Set up notebooks directory
-    notebooks_dir = Path(args.notebooks_dir)
-    if not notebooks_dir.is_absolute():
-        notebooks_dir = Path(__file__).parent / notebooks_dir
 
     # Check for notebooks
     if not notebooks_dir.exists():
@@ -339,7 +395,7 @@ Examples:
 
         if args.deploy:
             print("\nDeploying dashboard...")
-            deploy_dashboard(results_dir, args.deploy)
+            deploy_dashboard(results_dir, args.deploy, notebooks_dir)
 
     # Return exit code based on failures
     summary = result.summary

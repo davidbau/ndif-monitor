@@ -501,7 +501,14 @@ def _generate_html(data: Dict[str, Any]) -> str:
             border-top: 1px solid var(--border);
             font-size: 0.8rem;
         }
-        .scenario-name { color: var(--text-secondary); }
+        .scenario-name {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .scenario-name:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
         .scenario-status {
             display: flex;
             align-items: center;
@@ -826,6 +833,18 @@ def _generate_html(data: Dict[str, Any]) -> str:
             });
         }
 
+        // Helper to get model folder name for Colab notebook paths
+        function getModelFolder(model) {
+            return model.replace('/', '--');
+        }
+
+        // Helper to build Colab URL for model-specific notebooks
+        function getColabUrl(model, scenario) {
+            const folder = getModelFolder(model);
+            return 'https://colab.research.google.com/github/' + DATA.github_repo +
+                   '/blob/main/notebooks/colab/' + folder + '/' + scenario + '.ipynb';
+        }
+
         function renderModels() {
             const grid = document.getElementById('modelGrid');
             grid.innerHTML = '';
@@ -837,8 +856,9 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 let scenarios = '';
                 Object.entries(m.scenarios || {}).forEach(([k, v]) => {
                     const dur = v.duration_ms ? (v.duration_ms / 1000).toFixed(1) + 's' : '';
+                    const scenarioColabUrl = getColabUrl(m.model, k);
                     scenarios += '<div class="scenario-row">' +
-                        '<span class="scenario-name">' + k + '</span>' +
+                        '<a href="' + scenarioColabUrl + '" target="_blank" class="scenario-name" title="Open in Colab">' + k + '</a>' +
                         '<span class="scenario-status">' +
                         '<span class="scenario-time">' + dur + '</span>' +
                         '<span class="status-dot ' + v.status.toLowerCase() + '"></span>' +
@@ -846,7 +866,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 });
 
                 const updated = m.last_updated ? formatTimeAgo(m.last_updated) : '-';
-                const colabUrl = 'https://colab.research.google.com/github/' + DATA.github_repo + '/blob/main/notebooks/test_basic_trace.ipynb';
+                const colabUrl = getColabUrl(m.model, 'basic_trace');
 
                 const card = document.createElement('div');
                 card.className = 'model-card';
@@ -874,8 +894,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
             }
 
             DATA.failures.forEach(f => {
-                const notebook = {basic_trace: 'test_basic_trace.ipynb', generation: 'test_generation.ipynb', hidden_states: 'test_hidden_states.ipynb'}[f.scenario] || 'test_' + f.scenario + '.ipynb';
-                const colabUrl = 'https://colab.research.google.com/github/' + DATA.github_repo + '/blob/main/notebooks/' + notebook;
+                const colabUrl = getColabUrl(f.model, f.scenario);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML =
@@ -890,7 +909,8 @@ def _generate_html(data: Dict[str, Any]) -> str:
 
         function formatTime(iso) {
             const d = new Date(iso);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            return d.toLocaleDateString('en-US', {timeZone: 'America/New_York'}) + ' ' +
+                   d.toLocaleTimeString('en-US', {timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit'});
         }
 
         function formatTimeAgo(iso) {
