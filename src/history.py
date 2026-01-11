@@ -42,6 +42,27 @@ def utc_to_eastern_date(timestamp: str) -> str:
     return eastern_dt.strftime("%Y-%m-%d")
 
 
+def utc_to_eastern_segment(timestamp: str) -> str:
+    """Convert UTC timestamp to Eastern date + 4-hour segment.
+
+    Args:
+        timestamp: ISO format timestamp ending in 'Z' (UTC)
+
+    Returns:
+        String in format "YYYY-MM-DD-S" where S is segment 0-5
+        (0=00:00-04:00, 1=04:00-08:00, ..., 5=20:00-24:00)
+    """
+    ts = timestamp.rstrip('Z')
+    try:
+        dt = datetime.fromisoformat(ts).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return timestamp[:10] + "-0"
+
+    eastern_dt = dt.astimezone(EASTERN)
+    segment = eastern_dt.hour // 4  # 0-5
+    return eastern_dt.strftime("%Y-%m-%d") + f"-{segment}"
+
+
 def get_hostname() -> str:
     """Get short hostname of current machine."""
     return socket.gethostname().split('.')[0]
@@ -214,37 +235,52 @@ class HistoryStore:
         daily: Dict[str, Dict[str, Dict[str, str]]] = {}
 
         for entry in entries:
-            # Extract date from timestamp, converting to Eastern timezone
-            date = utc_to_eastern_date(entry.timestamp)
+            # Extract date and segment from timestamp, converting to Eastern timezone
+            segment_key = utc_to_eastern_segment(entry.timestamp)
+            date = segment_key[:10]  # YYYY-MM-DD portion
 
             if date not in daily:
                 daily[date] = {}
             if entry.model not in daily[date]:
-                daily[date][entry.model] = {}
+                daily[date][entry.model] = {"scenarios": {}, "segments": {}}
 
-            daily[date][entry.model][entry.scenario] = entry.status
+            daily[date][entry.model]["scenarios"][entry.scenario] = entry.status
+
+            # Track segment-level status (0-5 for 4-hour periods)
+            segment = segment_key[-1]  # "0" through "5"
+            if segment not in daily[date][entry.model]["segments"]:
+                daily[date][entry.model]["segments"][segment] = []
+            daily[date][entry.model]["segments"][segment].append(entry.status)
+
+        # Helper to compute worst status from a list of statuses
+        def worst_status(statuses: List[str]) -> str:
+            if "UNAVAILABLE" in statuses:
+                return "UNAVAILABLE"
+            if "FAILED" in statuses:
+                return "FAILED"
+            if "DEGRADED" in statuses:
+                return "DEGRADED"
+            if "SLOW" in statuses:
+                return "SLOW"
+            return "OK" if statuses else None
 
         # Convert to summary format
         summary: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for date, models in daily.items():
             summary[date] = {}
-            for model, scenarios in models.items():
-                statuses = list(scenarios.values())
-                # Overall status is worst status
-                if "UNAVAILABLE" in statuses:
-                    overall = "UNAVAILABLE"
-                elif "FAILED" in statuses:
-                    overall = "FAILED"
-                elif "DEGRADED" in statuses:
-                    overall = "DEGRADED"
-                elif "SLOW" in statuses:
-                    overall = "SLOW"
-                else:
-                    overall = "OK"
+            for model, model_data in models.items():
+                scenario_statuses = list(model_data["scenarios"].values())
+                overall = worst_status(scenario_statuses)
+
+                # Compute per-segment status (0-5 for 4-hour periods)
+                segment_summary = {}
+                for seg_num, seg_statuses in model_data["segments"].items():
+                    segment_summary[seg_num] = worst_status(seg_statuses)
 
                 summary[date][model] = {
                     "status": overall,
-                    "scenarios": scenarios,
+                    "scenarios": model_data["scenarios"],
+                    "segments": segment_summary,
                 }
 
         return summary

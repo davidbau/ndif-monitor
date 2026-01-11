@@ -428,7 +428,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
         }
         .calendar-months {
             display: flex;
-            gap: clamp(3px, 0.4vw, 6px);
             margin-bottom: 4px;
             font-size: 0.7rem;
             color: var(--text-muted);
@@ -439,32 +438,54 @@ def _generate_html(data: Dict[str, Any]) -> str:
         }
         .calendar {
             display: flex;
-            gap: clamp(3px, 0.4vw, 6px);  /* Responsive gap */
         }
         .calendar-week {
             display: flex;
             flex-direction: column;
-            gap: clamp(3px, 0.4vw, 6px);
         }
         .calendar-day {
-            width: clamp(10px, 1.2vw, 14px);
-            height: clamp(10px, 1.2vw, 14px);
-            border-radius: 2px;
-            background: var(--border);
+            display: flex;
+            flex-direction: row;
             cursor: pointer;
+        }
+        .calendar-segment {
+            background: var(--border);
             transition: transform 0.15s, box-shadow 0.15s;
         }
         .calendar-day:hover {
-            transform: scale(1.8);
+            transform: scale(1.5);
             box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text-muted);
             z-index: 10;
             position: relative;
         }
-        .calendar-day.ok { background: var(--ok); }
-        .calendar-day.slow { background: var(--slow); }
-        .calendar-day.degraded { background: var(--degraded); }
-        .calendar-day.failed { background: var(--failed); }
-        .calendar-day.unavailable { background: var(--unavailable); }
+        .calendar-segment.ok { background: var(--ok); }
+        .calendar-segment.slow { background: var(--slow); }
+        .calendar-segment.degraded { background: var(--degraded); }
+        .calendar-segment.failed { background: var(--failed); }
+        .calendar-segment.unavailable { background: var(--unavailable); }
+
+        /* Resize handle */
+        .calendar-resize {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0 4px;
+            cursor: ns-resize;
+            user-select: none;
+        }
+        .resize-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            transition: background 0.15s;
+        }
+        .calendar-resize:hover .resize-handle { background: var(--text-muted); }
+        .resize-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
 
         .model-filter select {
             background: var(--card);
@@ -661,8 +682,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
             .summary { gap: 1.5rem; }
             .stat-value { font-size: 2rem; }
             .model-grid { grid-template-columns: 1fr; }
-            .calendar-day { width: 9px; height: 9px; }
-            .calendar, .calendar-week { gap: 2px; }
         }
     </style>
 </head>
@@ -714,6 +733,10 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     <div class="calendar" id="calendar"></div>
                 </div>
             </div>
+            <div class="calendar-resize" id="calendarResize">
+                <div class="resize-handle"></div>
+                <span class="resize-label" id="resizeLabel">6h segments</span>
+            </div>
         </section>
 
         <section>
@@ -758,6 +781,8 @@ def _generate_html(data: Dict[str, Any]) -> str:
 
     <script>
         let DATA = null;
+        let granularity = 4;  // Number of segments to show per day (1, 2, 3, 4, or 6)
+        const GRANULARITY_LABELS = {1: 'Daily', 2: '12h', 3: '8h', 4: '6h', 6: '4h'};
 
         async function loadData() {
             try {
@@ -766,6 +791,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 DATA = await res.json();
                 document.getElementById('loading').style.display = 'none';
                 render();
+                setupResizeHandle();
             } catch (e) {
                 document.getElementById('loading').innerHTML =
                     '<div style="color:var(--failed)">Error loading data</div><div style="margin-top:0.5rem">' + e.message + '</div>';
@@ -812,6 +838,88 @@ def _generate_html(data: Dict[str, Any]) -> str:
             renderFailures();
         }
 
+        function setupResizeHandle() {
+            const handle = document.getElementById('calendarResize');
+            let startY = 0;
+            let startGranularity = granularity;
+
+            function onMove(e) {
+                const dy = (e.clientY || e.touches[0].clientY) - startY;
+                // Dragging down = more granularity, up = less
+                const steps = Math.round(dy / 20);
+                const levels = [1, 2, 3, 4, 6];
+                const startIdx = levels.indexOf(startGranularity);
+                const newIdx = Math.max(0, Math.min(levels.length - 1, startIdx + steps));
+                if (levels[newIdx] !== granularity) {
+                    granularity = levels[newIdx];
+                    updateResizeLabel();
+                    renderCalendar(document.getElementById('modelSelect').value);
+                }
+            }
+
+            function onEnd() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+            }
+
+            handle.addEventListener('mousedown', e => {
+                startY = e.clientY;
+                startGranularity = granularity;
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+            });
+            handle.addEventListener('touchstart', e => {
+                startY = e.touches[0].clientY;
+                startGranularity = granularity;
+                document.addEventListener('touchmove', onMove);
+                document.addEventListener('touchend', onEnd);
+            });
+        }
+
+        function updateResizeLabel() {
+            document.getElementById('resizeLabel').textContent = GRANULARITY_LABELS[granularity] + ' segments';
+        }
+
+        // Get segment statuses for a date and model, aggregated to current granularity
+        function getSegmentStatuses(date, model) {
+            if (!DATA.daily[date]) return Array(granularity).fill(null);
+
+            // Map from 6 raw segments to current granularity
+            const rawSegments = 6;
+            const segmentsPerBucket = rawSegments / granularity;
+            const result = [];
+
+            for (let i = 0; i < granularity; i++) {
+                const bucketStatuses = [];
+                for (let j = 0; j < segmentsPerBucket; j++) {
+                    const rawIdx = Math.floor(i * segmentsPerBucket + j);
+                    if (model === '__all__') {
+                        // Aggregate across all models
+                        Object.values(DATA.daily[date]).forEach(m => {
+                            if (m.segments && m.segments[rawIdx]) {
+                                bucketStatuses.push(m.segments[rawIdx]);
+                            }
+                        });
+                    } else {
+                        const d = DATA.daily[date][model];
+                        if (d && d.segments && d.segments[rawIdx]) {
+                            bucketStatuses.push(d.segments[rawIdx]);
+                        }
+                    }
+                }
+                // Compute worst status for this bucket
+                if (bucketStatuses.length === 0) result.push(null);
+                else if (bucketStatuses.includes('FAILED') || bucketStatuses.includes('UNAVAILABLE')) result.push('FAILED');
+                else if (bucketStatuses.includes('DEGRADED')) result.push('DEGRADED');
+                else if (bucketStatuses.includes('SLOW')) result.push('SLOW');
+                else result.push('OK');
+            }
+            return result;
+        }
+
+        // Get overall status for a date (for tooltip)
         function getStatus(date, model) {
             if (!DATA.daily[date]) return null;
             if (model === '__all__') {
@@ -830,13 +938,14 @@ def _generate_html(data: Dict[str, Any]) -> str:
             const monthsEl = document.getElementById('calendarMonths');
             cal.innerHTML = '';
             monthsEl.innerHTML = '';
+            updateResizeLabel();
 
             const weeks = [];
             let week = [];
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
             // Track month boundaries for labels
-            const monthStarts = [];  // {weekIndex, month, year}
+            const monthStarts = [];
             let currentMonth = null;
 
             DATA.dates.forEach((date, i) => {
@@ -844,7 +953,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 const month = d.getUTCMonth();
                 const year = d.getUTCFullYear();
 
-                // Track month changes
                 if (currentMonth !== month) {
                     monthStarts.push({weekIndex: weeks.length, month, year});
                     currentMonth = month;
@@ -858,21 +966,23 @@ def _generate_html(data: Dict[str, Any]) -> str:
             });
             if (week.length) weeks.push(week);
 
-            // Get day width for positioning (approximate)
-            const daySize = Math.min(Math.max(window.innerWidth * 0.012, 10), 14);
-            const gap = Math.min(Math.max(window.innerWidth * 0.004, 3), 6);
-            const weekWidth = daySize + gap;
+            // Compute sizes based on granularity
+            const segSize = Math.min(Math.max(window.innerWidth * 0.003, 3), 4);
+            const dayGap = 1;
+            const weekGap = Math.min(Math.max(window.innerWidth * 0.003, 2), 4);
+            const dayWidth = segSize * granularity + dayGap;
+            const weekWidth = dayWidth + weekGap;
+
+            // Apply CSS custom properties
+            cal.style.gap = weekGap + 'px';
+            document.querySelectorAll('.calendar-week').forEach(w => w.style.gap = dayGap + 'px');
 
             // Render month labels
-            let lastEnd = 0;
             monthStarts.forEach((ms, i) => {
                 const label = document.createElement('span');
                 label.className = 'calendar-month';
-
-                // Calculate width until next month (or end)
                 const nextStart = (i + 1 < monthStarts.length) ? monthStarts[i + 1].weekIndex : weeks.length;
                 const width = (nextStart - ms.weekIndex) * weekWidth;
-
                 label.style.width = width + 'px';
                 label.textContent = monthNames[ms.month];
                 monthsEl.appendChild(label);
@@ -882,23 +992,39 @@ def _generate_html(data: Dict[str, Any]) -> str:
             weeks.forEach(w => {
                 const weekEl = document.createElement('div');
                 weekEl.className = 'calendar-week';
+                weekEl.style.gap = dayGap + 'px';
 
                 // Pad first week
                 const first = new Date(w[0] + 'T00:00:00Z').getUTCDay();
                 for (let i = 0; i < first; i++) {
                     const pad = document.createElement('div');
                     pad.className = 'calendar-day';
+                    pad.style.width = dayWidth + 'px';
+                    pad.style.height = dayWidth + 'px';
                     weekEl.appendChild(pad);
                 }
 
                 w.forEach(date => {
                     const day = document.createElement('div');
                     day.className = 'calendar-day';
-                    const status = getStatus(date, model);
-                    if (status) day.classList.add(status.toLowerCase());
                     day.dataset.date = date;
                     day.onmouseenter = showTip;
                     day.onmouseleave = hideTip;
+                    day.style.gap = '0';
+
+                    // Get segment statuses for this date
+                    const segmentStatuses = getSegmentStatuses(date, model);
+
+                    // Create segment elements
+                    segmentStatuses.forEach((status, idx) => {
+                        const seg = document.createElement('div');
+                        seg.className = 'calendar-segment';
+                        seg.style.width = segSize + 'px';
+                        seg.style.height = dayWidth + 'px';
+                        if (status) seg.classList.add(status.toLowerCase());
+                        day.appendChild(seg);
+                    });
+
                     weekEl.appendChild(day);
                 });
                 cal.appendChild(weekEl);
