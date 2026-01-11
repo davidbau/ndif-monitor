@@ -27,7 +27,8 @@ BASELINE_MODELS = [
     "meta-llama/Llama-3.1-70B-Instruct",  # Llama 3.1 70B instruct
     "meta-llama/Llama-3.3-70B-Instruct",  # Llama 3.3 70B instruct
 
-    # Very large models (405B)
+    # Very large models (405B) - these swap HOT/COLD on different days
+    "meta-llama/Llama-3.1-405B",          # Llama 3.1 405B base
     "meta-llama/Llama-3.1-405B-Instruct", # Llama 3.1 405B instruct
 ]
 
