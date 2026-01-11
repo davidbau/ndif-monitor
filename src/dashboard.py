@@ -556,13 +556,26 @@ def _generate_html(data: Dict[str, Any]) -> str:
             border-top: 1px solid var(--border);
             font-size: 0.8rem;
         }
-        .scenario-name {
-            color: var(--text-secondary);
-            text-decoration: none;
+        .scenario-name-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        .scenario-name:hover {
+        .scenario-label {
+            color: var(--text-secondary);
+        }
+        .scenario-colab {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 0.1rem 0.3rem;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+        }
+        .scenario-colab:hover {
             color: var(--accent);
-            text-decoration: underline;
+            border-color: var(--accent);
+            text-decoration: none;
         }
         .scenario-status {
             display: flex;
@@ -1082,7 +1095,10 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     const dur = v.duration_ms ? (v.duration_ms / 1000).toFixed(1) + 's' : '';
                     const scenarioColabUrl = getColabUrl(m.model, k);
                     scenarios += '<div class="scenario-row">' +
-                        '<a href="' + scenarioColabUrl + '" target="_blank" class="scenario-name" title="Open in Colab">' + k + '</a>' +
+                        '<span class="scenario-name-group">' +
+                        '<span class="scenario-label">' + k + '</span>' +
+                        '<a href="' + scenarioColabUrl + '" target="_blank" class="scenario-colab" title="Run in Colab">colab</a>' +
+                        '</span>' +
                         '<span class="scenario-status">' +
                         '<span class="scenario-time">' + dur + '</span>' +
                         '<span class="status-dot ' + v.status.toLowerCase() + '"></span>' +
@@ -1090,7 +1106,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 });
 
                 const updated = m.last_updated ? formatTimeAgo(m.last_updated) : '-';
-                const colabUrl = getColabUrl(m.model, 'basic_trace');
 
                 const card = document.createElement('div');
                 card.className = 'model-card';
@@ -1102,7 +1117,6 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     '<div class="model-scenarios">' + scenarios + '</div>' +
                     '<div class="model-footer">' +
                     '<span class="updated">Updated ' + updated + '</span>' +
-                    '<a href="' + colabUrl + '" target="_blank" class="colab-link">Test in Colab →</a>' +
                     '</div>';
                 grid.appendChild(card);
             });
