@@ -56,44 +56,28 @@ def generate_colab_notebook(
         "\n",
         "## Setup\n",
         "\n",
-        "First, configure your API keys in Colab Secrets (🔑 icon in left sidebar):\n",
-        "- `NDIF_API`: Your NDIF API key from [nnsight.net](https://nnsight.net)\n",
+        "Configure your API keys in Colab Secrets (🔑 icon in left sidebar):\n",
+        "- `NDIF_API_KEY`: Your NDIF API key from [nnsight.net](https://nnsight.net)\n",
         "- `HF_TOKEN`: Your HuggingFace token (for gated models)\n",
     ]))
 
-    # Install dependencies
+    # Install dependencies and configure auth
     cells.append(make_cell("code", [
         "# Install dependencies\n",
         "!pip install -q nnsight torch\n",
-    ]))
-
-    # Auth setup using Colab secrets
-    cells.append(make_cell("code", [
-        "# Configure authentication from Colab secrets\n",
-        "import os\n",
         "\n",
+        "# Load API keys from Colab secrets into environment\n",
+        "# nnsight automatically picks up NDIF_API_KEY from env\n",
+        "import os\n",
         "try:\n",
         "    from google.colab import userdata\n",
-        "    NDIF_API = userdata.get('NDIF_API')\n",
-        "    HF_TOKEN = userdata.get('HF_TOKEN')\n",
-        "    print('Loaded secrets from Colab')\n",
-        "except:\n",
-        "    # Fallback for local testing\n",
-        "    NDIF_API = os.environ.get('NDIF_API')\n",
-        "    HF_TOKEN = os.environ.get('HF_TOKEN')\n",
-        "    print('Using environment variables')\n",
-        "\n",
-        "# Configure nnsight\n",
-        "from nnsight import CONFIG\n",
-        "if NDIF_API:\n",
-        "    CONFIG.set_default_api_key(NDIF_API)\n",
-        "    print('NDIF API key configured')\n",
-        "else:\n",
-        "    print('Warning: NDIF_API not set - add it to Colab Secrets')\n",
-        "\n",
-        "if HF_TOKEN:\n",
-        "    os.environ['HF_TOKEN'] = HF_TOKEN\n",
-        "    print('HuggingFace token configured')\n",
+        "    for key in ['NDIF_API_KEY', 'HF_TOKEN']:\n",
+        "        try:\n",
+        "            os.environ[key] = userdata.get(key)\n",
+        "        except:\n",
+        "            pass\n",
+        "except ImportError:\n",
+        "    pass  # Not in Colab, use existing env vars\n",
     ]))
 
     # Model loading - hardcoded model name
@@ -219,7 +203,10 @@ def _generate_generation_code(model_name: str) -> List[str]:
 
 
 def _generate_hidden_states_code(model_name: str) -> List[str]:
-    """Generate hidden states extraction code."""
+    """Generate hidden states extraction code.
+
+    Uses list.save() - nnsight 0.5 adds .save() method to built-in types.
+    """
     layer_accessor = _get_layer_accessor(model_name)
     return [
         "# Extract hidden states from all layers\n",
@@ -232,7 +219,9 @@ def _generate_hidden_states_code(model_name: str) -> List[str]:
         "\n",
         "start = time.time()\n",
         "with model.trace(prompt, remote=True):\n",
-        "    states = [layer.output[0].save() for layer in layers]\n",
+        "    # Collect layer outputs and save as a list\n",
+        "    states = [layer.output[0] for layer in layers]\n",
+        "    states.save()  # nnsight adds .save() to lists\n",
         "\n",
         "extract_time = time.time() - start\n",
         "print(f'Extraction completed in {extract_time:.1f}s')\n",
@@ -281,10 +270,7 @@ def _generate_validation_code(scenario: str) -> List[str]:
             "# Validate hidden states\n",
             "import torch\n",
             "\n",
-            "if 'states' not in dir():\n",
-            "    raise RuntimeError('Trace was interrupted - states not captured. Try running again.')\n",
-            "\n",
-            "assert len(states) > 0, 'No hidden states extracted'\n",
+            "assert len(states) == num_layers, f'Expected {num_layers} states, got {len(states)}'\n",
             "\n",
             "for i, state in enumerate(states):\n",
             "    assert not torch.isnan(state).any(), f'Layer {i} contains NaN'\n",

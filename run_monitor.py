@@ -341,21 +341,15 @@ Examples:
     if args.status_only:
         return 0
 
-    # Check for notebooks
+    # Notebooks are generated on-the-fly per model in notebooks/colab/{model}/
+    # Just ensure the base directory exists
     if not notebooks_dir.exists():
-        print(f"\nError: Notebooks directory not found: {notebooks_dir}")
-        print("Create test notebooks first.")
-        return 1
+        notebooks_dir.mkdir(parents=True, exist_ok=True)
 
-    notebook_files = list(notebooks_dir.glob("test_*.ipynb"))
-    if not notebook_files:
-        print(f"\nError: No test notebooks found in {notebooks_dir}")
-        print("Expected notebooks like test_basic_trace.ipynb")
-        return 1
-
-    print(f"\nFound {len(notebook_files)} test notebooks:")
-    for nb in notebook_files:
-        print(f"  - {nb.name}")
+    from src.runner import DEFAULT_SCENARIOS
+    print(f"\nTest scenarios: {len(DEFAULT_SCENARIOS)}")
+    for s in DEFAULT_SCENARIOS:
+        print(f"  - {s.name}: {s.description}")
 
     # Run tests
     print("\n" + "=" * 60)

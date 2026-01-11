@@ -27,13 +27,13 @@ from .results import (
 )
 from .jupyter_executor import VenvManager, run_notebook_test
 from .history import HistoryStore, HistoryEntry, get_hostname, get_username
+from .notebook_generator import generate_colab_notebooks_for_model
 
 
 @dataclass
 class Scenario:
     """Test scenario configuration."""
-    name: str                    # Scenario identifier
-    notebook: str                # Notebook filename (without path)
+    name: str                    # Scenario identifier (also notebook name without .ipynb)
     description: str             # Human-readable description
     timeout: int = 300           # Execution timeout in seconds
     threshold_ms: int = 30000    # Duration threshold for SLOW
@@ -41,25 +41,22 @@ class Scenario:
     architectures: List[str] = field(default_factory=list)  # If model_specific
 
 
-# Default test scenarios
+# Default test scenarios - notebooks are in notebooks/colab/{model}/{scenario}.ipynb
 DEFAULT_SCENARIOS = [
     Scenario(
         name="basic_trace",
-        notebook="test_basic_trace.ipynb",
         description="Basic model.trace() with hidden state extraction",
         timeout=90,  # 90s should be plenty for basic trace
         threshold_ms=30000,
     ),
     Scenario(
         name="generation",
-        notebook="test_generation.ipynb",
         description="Text generation with model.generate()",
         timeout=90,
         threshold_ms=45000,
     ),
     Scenario(
         name="hidden_states",
-        notebook="test_hidden_states.ipynb",
         description="Extract hidden states from all layers",
         timeout=120,  # Hidden states may take longer
         threshold_ms=60000,
@@ -120,15 +117,35 @@ class MonitorRunner:
         self.notebooks_dir.mkdir(parents=True, exist_ok=True)
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
+        # Colab notebooks directory
+        self.colab_dir = self.notebooks_dir / "colab"
+        self.colab_dir.mkdir(parents=True, exist_ok=True)
+
         # Cycle state for round-robin
         self.cycle_state = CycleState(self.results_dir / ".cycle_state.json")
 
         # History store for dashboard
         self.history = HistoryStore(self.results_dir / "history.jsonl")
 
-    def get_notebook_path(self, scenario: Scenario) -> Path:
-        """Get full path to a scenario's notebook."""
-        return self.notebooks_dir / scenario.notebook
+    def get_notebook_path(self, model_name: str, scenario: Scenario) -> Path:
+        """Get full path to a model's scenario notebook.
+
+        Colab notebooks are stored at: notebooks/colab/{model_filename}/{scenario}.ipynb
+        """
+        model_filename = model_name.replace("/", "--")
+        return self.colab_dir / model_filename / f"{scenario.name}.ipynb"
+
+    def ensure_notebooks_generated(self, model_name: str) -> List[Path]:
+        """Ensure Colab notebooks exist for a model, generating if needed.
+
+        Returns list of generated/existing notebook paths.
+        """
+        scenario_names = [s.name for s in self.scenarios]
+        return generate_colab_notebooks_for_model(
+            model_name=model_name,
+            output_dir=self.colab_dir,
+            scenarios=scenario_names,
+        )
 
     def get_model_status_path(self, model_name: str) -> Path:
         """Get path to model's status JSON file."""
@@ -242,6 +259,9 @@ class MonitorRunner:
                 )
             return results
 
+        # Generate Colab notebooks for this model (they have hardcoded model names)
+        self.ensure_notebooks_generated(model.model_key)
+
         for scenario in self.scenarios:
             # Skip if model_specific and architecture doesn't match
             if scenario.model_specific:
@@ -250,7 +270,7 @@ class MonitorRunner:
 
             print(f"\n  {scenario.name}...", end=" ", flush=True)
 
-            notebook_path = self.get_notebook_path(scenario)
+            notebook_path = self.get_notebook_path(model.model_key, scenario)
             if not notebook_path.exists():
                 print(f"⚠ notebook not found")
                 result = TestResult(
@@ -258,10 +278,10 @@ class MonitorRunner:
                     scenario=scenario.name,
                     status=Status.FAILED,
                     duration_ms=0,
-                    details=f"Notebook not found: {scenario.notebook}",
+                    details=f"Notebook not found: {notebook_path.name}",
                 )
             else:
-                # Run the test
+                # Run the Colab notebook (has hardcoded model name, no MODEL_NAME env var needed)
                 result = run_notebook_test(
                     notebook_path=str(notebook_path),
                     model_name=model.model_key,
