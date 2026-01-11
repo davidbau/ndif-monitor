@@ -426,7 +426,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
             gap: clamp(3px, 0.4vw, 6px);  /* Responsive gap */
             direction: ltr;  /* Restore normal direction for content */
             width: max-content;
-            margin-left: auto;  /* Push to right when space available */
+            margin: 0 auto;  /* Center when space available */
         }
         .calendar-week {
             display: flex;
