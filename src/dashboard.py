@@ -844,14 +844,33 @@ def _generate_html(data: Dict[str, Any]) -> str:
             let startY = 0;
             let startGranularity = granularity;
 
+            // Calculate calendar height for a given granularity
+            function calcHeight(g) {
+                const segSize = Math.min(Math.max(window.innerWidth * 0.003, 3), 4);
+                const dayGap = 1;
+                const dayHeight = segSize * g + dayGap;
+                return dayHeight * 7;  // 7 days per week column
+            }
+
             function onMove(e) {
                 const dy = (e.clientY || e.touches[0].clientY) - startY;
-                // Dragging down = more granularity, up = less
-                const steps = Math.round(dy / 15);
-                const startIdx = GRANULARITY_LEVELS.indexOf(startGranularity);
-                const newIdx = Math.max(0, Math.min(GRANULARITY_LEVELS.length - 1, startIdx + steps));
-                if (GRANULARITY_LEVELS[newIdx] !== granularity) {
-                    granularity = GRANULARITY_LEVELS[newIdx];
+                // Target height = start height + drag distance
+                const startHeight = calcHeight(startGranularity);
+                const targetHeight = startHeight + dy;
+
+                // Find the granularity level closest to target height
+                let bestLevel = startGranularity;
+                let bestDiff = Infinity;
+                GRANULARITY_LEVELS.forEach(level => {
+                    const diff = Math.abs(calcHeight(level) - targetHeight);
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestLevel = level;
+                    }
+                });
+
+                if (bestLevel !== granularity) {
+                    granularity = bestLevel;
                     updateResizeLabel();
                     renderCalendar(document.getElementById('modelSelect').value);
                 }
