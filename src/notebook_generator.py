@@ -145,8 +145,7 @@ def generate_colab_notebook(
             },
             "language_info": {
                 "name": "python"
-            },
-            "accelerator": "GPU"
+            }
         },
         "cells": cells
     }
