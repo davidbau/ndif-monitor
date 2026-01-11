@@ -393,6 +393,10 @@ class MonitorRunner:
                 if key not in notebook_env and os.environ.get(key):
                     notebook_env[key] = os.environ[key]
 
+            # nnsight expects NDIF_API_KEY (not NDIF_API)
+            if "NDIF_API" in notebook_env and "NDIF_API_KEY" not in notebook_env:
+                notebook_env["NDIF_API_KEY"] = notebook_env["NDIF_API"]
+
             # Run tests for each model
             print(f"\nRunning {len(models)} model(s) × {len(self.scenarios)} scenarios")
             print("=" * 60)
