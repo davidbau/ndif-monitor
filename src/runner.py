@@ -47,21 +47,21 @@ DEFAULT_SCENARIOS = [
         name="basic_trace",
         notebook="test_basic_trace.ipynb",
         description="Basic model.trace() with hidden state extraction",
-        timeout=180,
+        timeout=90,  # 90s should be plenty for basic trace
         threshold_ms=30000,
     ),
     Scenario(
         name="generation",
         notebook="test_generation.ipynb",
         description="Text generation with model.generate()",
-        timeout=180,
+        timeout=90,
         threshold_ms=45000,
     ),
     Scenario(
         name="hidden_states",
         notebook="test_hidden_states.ipynb",
         description="Extract hidden states from all layers",
-        timeout=240,
+        timeout=120,  # Hidden states may take longer
         threshold_ms=60000,
     ),
 ]
@@ -328,29 +328,14 @@ class MonitorRunner:
             for m in models:
                 print(f"  - {m.model_key}")
 
-        # Create fresh virtual environment
-        venv = VenvManager()
+        # Use existing environment (conda or venv) instead of creating fresh venv each time
+        # This is much faster (~3 min saved) and the conda env has the right Python version
+        venv = VenvManager(use_system_python=True)
         results: List[TestResult] = []
         nnsight_version = "unknown"
 
         try:
-            venv.create_venv("ndif-monitor")
-
-            # Install required packages
-            print("\nInstalling test dependencies...")
-            venv.install_packages([
-                # Use papermill for notebook execution - handles asyncio better
-                # than nbconvert on Python 3.8
-                "papermill",
-                "ipykernel",
-                # Install transformers first to ensure compatible version
-                # nnsight requires CompileConfig which needs transformers>=4.36
-                "transformers>=4.36",
-                "nnsight",
-                "torch",
-            ])
-
-            # Get nnsight version for reporting
+            # Get nnsight version from current environment
             nnsight_version = venv.get_package_version("nnsight") or "unknown"
             print(f"nnsight version: {nnsight_version}")
 

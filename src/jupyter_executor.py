@@ -31,16 +31,18 @@ class ExecutionResult:
 
 
 class VenvManager:
-    """Manages temporary virtual environments for isolated testing."""
+    """Manages virtual environments for isolated testing."""
 
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: Optional[str] = None, use_system_python: bool = False):
         """Initialize venv manager.
 
         Args:
             base_dir: Base directory for venvs. Uses temp dir if None.
+            use_system_python: If True, use current Python instead of creating venv.
         """
         self.base_dir = Path(base_dir) if base_dir else Path(tempfile.gettempdir())
         self.venv_path: Optional[Path] = None
+        self.use_system_python = use_system_python
 
     def create_venv(self, name: str = "ndif-test") -> Path:
         """Create a fresh virtual environment.
@@ -63,19 +65,21 @@ class VenvManager:
         return self.venv_path
 
     def get_python(self) -> str:
-        """Get path to Python executable in venv."""
+        """Get path to Python executable."""
+        if self.use_system_python:
+            return sys.executable
         if not self.venv_path:
             raise RuntimeError("No venv created. Call create_venv() first.")
-
         if sys.platform == "win32":
             return str(self.venv_path / "Scripts" / "python.exe")
         return str(self.venv_path / "bin" / "python")
 
     def get_pip(self) -> str:
-        """Get path to pip executable in venv."""
+        """Get path to pip executable."""
+        if self.use_system_python:
+            return f"{sys.executable} -m pip"
         if not self.venv_path:
             raise RuntimeError("No venv created. Call create_venv() first.")
-
         if sys.platform == "win32":
             return str(self.venv_path / "Scripts" / "pip.exe")
         return str(self.venv_path / "bin" / "pip")
@@ -102,11 +106,11 @@ class VenvManager:
 
     def get_package_version(self, package: str) -> Optional[str]:
         """Get installed version of a package."""
-        result = subprocess.run(
-            [self.get_pip(), "show", package],
-            capture_output=True,
-            text=True,
-        )
+        if self.use_system_python:
+            cmd = [sys.executable, "-m", "pip", "show", package]
+        else:
+            cmd = [self.get_pip(), "show", package]
+        result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return None
 
@@ -117,6 +121,8 @@ class VenvManager:
 
     def cleanup(self) -> None:
         """Remove the virtual environment."""
+        if self.use_system_python:
+            return  # Nothing to clean up
         if self.venv_path and self.venv_path.exists():
             print(f"Cleaning up venv at {self.venv_path}")
             shutil.rmtree(self.venv_path, ignore_errors=True)
