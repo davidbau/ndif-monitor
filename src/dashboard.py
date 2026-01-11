@@ -421,12 +421,25 @@ def _generate_html(data: Dict[str, Any]) -> str:
             /* Scroll to show recent dates (right side) by default */
             direction: rtl;
         }
+        .calendar-container {
+            direction: ltr;
+            width: max-content;
+            margin: 0 auto;
+        }
+        .calendar-months {
+            display: flex;
+            gap: clamp(3px, 0.4vw, 6px);
+            margin-bottom: 4px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .calendar-month {
+            text-align: left;
+            white-space: nowrap;
+        }
         .calendar {
             display: flex;
             gap: clamp(3px, 0.4vw, 6px);  /* Responsive gap */
-            direction: ltr;  /* Restore normal direction for content */
-            width: max-content;
-            margin: 0 auto;  /* Center when space available */
         }
         .calendar-week {
             display: flex;
@@ -696,7 +709,10 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 </div>
             </div>
             <div class="calendar-wrapper">
-                <div class="calendar" id="calendar"></div>
+                <div class="calendar-container">
+                    <div class="calendar-months" id="calendarMonths"></div>
+                    <div class="calendar" id="calendar"></div>
+                </div>
             </div>
         </section>
 
@@ -811,12 +827,29 @@ def _generate_html(data: Dict[str, Any]) -> str:
 
         function renderCalendar(model) {
             const cal = document.getElementById('calendar');
+            const monthsEl = document.getElementById('calendarMonths');
             cal.innerHTML = '';
+            monthsEl.innerHTML = '';
 
             const weeks = [];
             let week = [];
-            DATA.dates.forEach(date => {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            // Track month boundaries for labels
+            const monthStarts = [];  // {weekIndex, month, year}
+            let currentMonth = null;
+
+            DATA.dates.forEach((date, i) => {
                 const d = new Date(date + 'T00:00:00Z');
+                const month = d.getUTCMonth();
+                const year = d.getUTCFullYear();
+
+                // Track month changes
+                if (currentMonth !== month) {
+                    monthStarts.push({weekIndex: weeks.length, month, year});
+                    currentMonth = month;
+                }
+
                 if (d.getUTCDay() === 0 && week.length) {
                     weeks.push(week);
                     week = [];
@@ -825,6 +858,27 @@ def _generate_html(data: Dict[str, Any]) -> str:
             });
             if (week.length) weeks.push(week);
 
+            // Get day width for positioning (approximate)
+            const daySize = Math.min(Math.max(window.innerWidth * 0.012, 10), 14);
+            const gap = Math.min(Math.max(window.innerWidth * 0.004, 3), 6);
+            const weekWidth = daySize + gap;
+
+            // Render month labels
+            let lastEnd = 0;
+            monthStarts.forEach((ms, i) => {
+                const label = document.createElement('span');
+                label.className = 'calendar-month';
+
+                // Calculate width until next month (or end)
+                const nextStart = (i + 1 < monthStarts.length) ? monthStarts[i + 1].weekIndex : weeks.length;
+                const width = (nextStart - ms.weekIndex) * weekWidth;
+
+                label.style.width = width + 'px';
+                label.textContent = monthNames[ms.month];
+                monthsEl.appendChild(label);
+            });
+
+            // Render weeks
             weeks.forEach(w => {
                 const weekEl = document.createElement('div');
                 weekEl.className = 'calendar-week';
