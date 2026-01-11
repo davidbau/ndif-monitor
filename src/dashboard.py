@@ -413,12 +413,29 @@ def _generate_html(data: Dict[str, Any]) -> str:
         .legend-dot.empty { background: var(--border); }
 
         /* Calendar */
-        .calendar-wrapper { overflow-x: auto; padding-bottom: 0.5rem; }
-        .calendar { display: flex; gap: 3px; }
-        .calendar-week { display: flex; flex-direction: column; gap: 3px; }
+        .calendar-wrapper {
+            overflow-x: auto;
+            padding: 10px;  /* Space for hover effects */
+            margin: -10px;  /* Compensate for padding */
+            margin-bottom: 0;
+            /* Scroll to show recent dates (right side) by default */
+            direction: rtl;
+        }
+        .calendar {
+            display: flex;
+            gap: clamp(3px, 0.4vw, 6px);  /* Responsive gap */
+            direction: ltr;  /* Restore normal direction for content */
+            width: max-content;
+            margin-left: auto;  /* Push to right when space available */
+        }
+        .calendar-week {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(3px, 0.4vw, 6px);
+        }
         .calendar-day {
-            width: 11px;
-            height: 11px;
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(10px, 1.2vw, 14px);
             border-radius: 2px;
             background: var(--border);
             cursor: pointer;
@@ -631,7 +648,8 @@ def _generate_html(data: Dict[str, Any]) -> str:
             .summary { gap: 1.5rem; }
             .stat-value { font-size: 2rem; }
             .model-grid { grid-template-columns: 1fr; }
-            .calendar-day { width: 8px; height: 8px; }
+            .calendar-day { width: 9px; height: 9px; }
+            .calendar, .calendar-week { gap: 2px; }
         }
     </style>
 </head>
