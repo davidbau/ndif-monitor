@@ -279,9 +279,9 @@ def _generate_html(data: Dict[str, Any]) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NDIF Monitor Dashboard</title>
+    <title>NDIF Monitor</title>
     <style>
-        :root {{
+        :root {
             --ok: #22c55e;
             --slow: #eab308;
             --degraded: #f97316;
@@ -293,27 +293,72 @@ def _generate_html(data: Dict[str, Any]) -> str:
             --text: #f1f5f9;
             --text-dim: #94a3b8;
             --border: #334155;
-        }}
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{
+            --accent: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
-            padding: 2rem;
-            line-height: 1.5;
-        }}
-        h1, h2, h3 {{ font-weight: 600; margin-bottom: 1rem; }}
-        h1 {{ font-size: 1.5rem; }}
-        h2 {{ font-size: 1.25rem; color: var(--text-dim); }}
-        .header {{
+            padding: 0;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        h1, h2, h3 { font-weight: 600; }
+        h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+        h2 { font-size: 1.1rem; color: var(--text); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+
+        /* Header with summary */
+        .page-header {
+            background: linear-gradient(135deg, var(--card) 0%, var(--bg) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        .header-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 1rem;
-        }}
-        .timestamp {{ color: var(--text-dim); font-size: 0.875rem; }}
+            margin-bottom: 1.5rem;
+        }
+        .header-title h1 { color: var(--text); }
+        .header-title p { color: var(--text-dim); font-size: 0.9rem; }
+        .header-meta { text-align: right; color: var(--text-dim); font-size: 0.85rem; }
+
+        /* Summary stats */
+        .summary-stats {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .stat-number.ok { color: var(--ok); }
+        .stat-number.failed { color: var(--failed); }
+        .stat-number.slow { color: var(--slow); }
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .timestamp { color: var(--text-dim); font-size: 0.875rem; }
         .card {{
             background: var(--card);
             border-radius: 0.5rem;
