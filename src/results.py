@@ -16,6 +16,7 @@ class Status(Enum):
     DEGRADED = "DEGRADED"  # Partial failure or unexpected behavior
     FAILED = "FAILED"      # Test failed with error
     UNAVAILABLE = "UNAVAILABLE"  # Model/service not reachable
+    COLD = "COLD"          # Model intentionally offline (matches NDIF status)
 
 
 class ErrorCategory(Enum):
@@ -97,6 +98,9 @@ class ModelStatus:
         # If any scenario is slow, model is slow
         if Status.SLOW in statuses:
             return Status.SLOW
+        # If all scenarios are cold, model is cold
+        if all(s == Status.COLD for s in statuses):
+            return Status.COLD
         # All OK
         return Status.OK
 

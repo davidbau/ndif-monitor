@@ -260,6 +260,8 @@ class HistoryStore:
                 return "DEGRADED"
             if "SLOW" in statuses:
                 return "SLOW"
+            if statuses and all(s == "COLD" for s in statuses):
+                return "COLD"
             return "OK" if statuses else None
 
         # Convert to summary format

@@ -286,6 +286,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
             --degraded: #f97316;
             --failed: #ef4444;
             --unavailable: #6b7280;
+            --cold: #4b5563;
             --bg: #0c0c0c;
             --card: #171717;
             --card-hover: #1f1f1f;
@@ -410,6 +411,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
         .legend-dot.slow { background: var(--slow); }
         .legend-dot.failed { background: var(--failed); }
         .legend-dot.unavailable { background: var(--unavailable); }
+        .legend-dot.cold { background: var(--cold); }
         .legend-dot.empty { background: var(--border); }
 
         /* Calendar */
@@ -463,6 +465,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
         .calendar-segment.degraded { background: var(--degraded); }
         .calendar-segment.failed { background: var(--failed); }
         .calendar-segment.unavailable { background: var(--unavailable); }
+        .calendar-segment.cold { background: var(--cold); }
 
         /* Resize handle */
         .calendar-resize {
@@ -542,6 +545,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
         .status-badge.degraded { background: var(--degraded); color: #000; }
         .status-badge.failed { background: var(--failed); color: #fff; }
         .status-badge.unavailable { background: var(--unavailable); color: #fff; }
+        .status-badge.cold { background: var(--cold); color: #fff; }
 
         .model-scenarios { margin-top: 0.75rem; }
         .scenario-row {
@@ -579,6 +583,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
         .status-dot.degraded { background: var(--degraded); }
         .status-dot.failed { background: var(--failed); }
         .status-dot.unavailable { background: var(--unavailable); }
+        .status-dot.cold { background: var(--cold); }
 
         .model-footer {
             margin-top: 0.75rem;
@@ -718,6 +723,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                         <div class="legend-item"><div class="legend-dot ok"></div>OK</div>
                         <div class="legend-item"><div class="legend-dot slow"></div>Slow</div>
                         <div class="legend-item"><div class="legend-dot failed"></div>Failed</div>
+                        <div class="legend-item"><div class="legend-dot cold"></div>Cold</div>
                         <div class="legend-item"><div class="legend-dot empty"></div>No data</div>
                     </div>
                     <div class="model-filter">
@@ -932,6 +938,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 else if (bucketStatuses.includes('FAILED') || bucketStatuses.includes('UNAVAILABLE')) result.push('FAILED');
                 else if (bucketStatuses.includes('DEGRADED')) result.push('DEGRADED');
                 else if (bucketStatuses.includes('SLOW')) result.push('SLOW');
+                else if (bucketStatuses.every(s => s === 'COLD')) result.push('COLD');
                 else result.push('OK');
             }
             return result;
@@ -945,6 +952,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 if (statuses.includes('FAILED') || statuses.includes('UNAVAILABLE')) return 'FAILED';
                 if (statuses.includes('DEGRADED')) return 'DEGRADED';
                 if (statuses.includes('SLOW')) return 'SLOW';
+                if (statuses.every(s => s === 'COLD')) return 'COLD';
                 return statuses.length ? 'OK' : null;
             }
             const d = DATA.daily[date][model];

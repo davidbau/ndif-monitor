@@ -219,6 +219,29 @@ class MonitorRunner:
         """Run all scenarios for a single model."""
         results = []
 
+        # Check if model is intentionally offline (COLD in NDIF)
+        if not model.is_available:
+            print(f" (cold)")
+            for scenario in self.scenarios:
+                if scenario.model_specific:
+                    if model.architecture.value not in scenario.architectures:
+                        continue
+                result = TestResult(
+                    model=model.model_key,
+                    scenario=scenario.name,
+                    status=Status.COLD,
+                    duration_ms=0,
+                    details=f"Model is {model.deployment_level.value} (intentionally offline)",
+                )
+                results.append(result)
+                self.update_model_status(
+                    model.model_key,
+                    scenario.name,
+                    result,
+                    nnsight_version,
+                )
+            return results
+
         for scenario in self.scenarios:
             # Skip if model_specific and architecture doesn't match
             if scenario.model_specific:
@@ -266,6 +289,7 @@ class MonitorRunner:
                 Status.DEGRADED: "⚠",
                 Status.FAILED: "✗",
                 Status.UNAVAILABLE: "·",
+                Status.COLD: "○",
             }
             symbol = status_symbols.get(result.status, "?")
             duration_str = f"{result.duration_ms / 1000:.1f}s"
