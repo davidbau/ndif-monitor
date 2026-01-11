@@ -807,10 +807,15 @@ def _generate_html(data: Dict[str, Any]) -> str:
         // Threshold for SLOW status (ms) - determined at analysis time
         const SLOW_THRESHOLD_MS = 35000;  // 35 seconds
 
-        // Compute effective status, applying SLOW threshold to OK results
+        // Compute effective status, applying SLOW threshold to passing results
+        // Treats stored SLOW as OK since SLOW is now determined only by duration
         function getEffectiveStatus(status, scenario, duration_ms) {
-            if (status !== 'OK') return status;
-            if (!duration_ms) return status;
+            // Failed/unavailable statuses pass through unchanged
+            if (status === 'FAILED' || status === 'UNAVAILABLE' || status === 'COLD' || status === 'DEGRADED') {
+                return status;
+            }
+            // For passing tests (OK or legacy SLOW), apply threshold
+            if (!duration_ms) return 'OK';
             return duration_ms > SLOW_THRESHOLD_MS ? 'SLOW' : 'OK';
         }
 
