@@ -36,7 +36,6 @@ class Scenario:
     name: str                    # Scenario identifier (also notebook name without .ipynb)
     description: str             # Human-readable description
     timeout: int = 300           # Execution timeout in seconds
-    threshold_ms: int = 30000    # Duration threshold for SLOW
     model_specific: bool = False # If True, only run on specific architectures
     architectures: List[str] = field(default_factory=list)  # If model_specific
 
@@ -47,19 +46,16 @@ DEFAULT_SCENARIOS = [
         name="basic_trace",
         description="Basic model.trace() with hidden state extraction",
         timeout=90,  # 90s should be plenty for basic trace
-        threshold_ms=30000,
     ),
     Scenario(
         name="generation",
         description="Text generation with model.generate()",
         timeout=90,
-        threshold_ms=45000,
     ),
     Scenario(
         name="hidden_states",
         description="Extract hidden states from all layers",
         timeout=120,  # Hidden states may take longer
-        threshold_ms=60000,
     ),
 ]
 
@@ -288,7 +284,6 @@ class MonitorRunner:
                     scenario_name=scenario.name,
                     venv=venv,
                     timeout=scenario.timeout,
-                    threshold_ms=scenario.threshold_ms,
                     extra_env=env_vars,
                 )
 

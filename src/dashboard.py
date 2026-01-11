@@ -804,6 +804,28 @@ def _generate_html(data: Dict[str, Any]) -> str:
         const GRANULARITY_LEVELS = [1, 2, 3, 4, 6, 8, 12, 24];
         const GRANULARITY_LABELS = {1: 'Daily', 2: '12h', 3: '8h', 4: '6h', 6: '4h', 8: '3h', 12: '2h', 24: '1h'};
 
+        // Threshold for SLOW status (ms) - determined at analysis time
+        const SLOW_THRESHOLD_MS = 35000;  // 35 seconds
+
+        // Compute effective status, applying SLOW threshold to OK results
+        function getEffectiveStatus(status, scenario, duration_ms) {
+            if (status !== 'OK') return status;
+            if (!duration_ms) return status;
+            return duration_ms > SLOW_THRESHOLD_MS ? 'SLOW' : 'OK';
+        }
+
+        // Compute overall status from scenario statuses
+        function computeOverallStatus(scenarios) {
+            const statuses = Object.entries(scenarios || {}).map(([k, v]) =>
+                getEffectiveStatus(v.status, k, v.duration_ms)
+            );
+            if (statuses.includes('FAILED') || statuses.includes('UNAVAILABLE')) return 'FAILED';
+            if (statuses.includes('DEGRADED')) return 'DEGRADED';
+            if (statuses.includes('SLOW')) return 'SLOW';
+            if (statuses.every(s => s === 'COLD')) return 'COLD';
+            return statuses.length ? 'OK' : 'UNKNOWN';
+        }
+
         async function loadData() {
             try {
                 const res = await fetch('data/status.json');
@@ -829,11 +851,11 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 document.getElementById('hostInfo').textContent = info;
             }
 
-            // Summary stats
+            // Summary stats (compute SLOW status from thresholds)
             const stats = {total: 0, ok: 0, slow: 0, failed: 0};
             DATA.current.forEach(m => {
                 stats.total++;
-                const s = m.overall_status.toLowerCase();
+                const s = computeOverallStatus(m.scenarios).toLowerCase();
                 if (s === 'ok') stats.ok++;
                 else if (s === 'slow') stats.slow++;
                 else if (s === 'failed' || s === 'unavailable' || s === 'degraded') stats.failed++;
@@ -1087,12 +1109,16 @@ def _generate_html(data: Dict[str, Any]) -> str:
             grid.innerHTML = '';
 
             DATA.current.forEach(m => {
-                const st = m.overall_status.toLowerCase();
+                // Compute overall status from scenarios (applies SLOW thresholds)
+                const overallStatus = computeOverallStatus(m.scenarios);
+                const st = overallStatus.toLowerCase();
                 const [org, name] = m.model.includes('/') ? m.model.split('/') : ['', m.model];
 
                 let scenarios = '';
                 Object.entries(m.scenarios || {}).forEach(([k, v]) => {
                     const dur = v.duration_ms ? (v.duration_ms / 1000).toFixed(1) + 's' : '';
+                    // Apply SLOW threshold to each scenario
+                    const effectiveStatus = getEffectiveStatus(v.status, k, v.duration_ms);
                     const scenarioColabUrl = getColabUrl(m.model, k);
                     scenarios += '<div class="scenario-row">' +
                         '<span class="scenario-name-group">' +
@@ -1101,7 +1127,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                         '</span>' +
                         '<span class="scenario-status">' +
                         '<span class="scenario-time">' + dur + '</span>' +
-                        '<span class="status-dot ' + v.status.toLowerCase() + '"></span>' +
+                        '<span class="status-dot ' + effectiveStatus.toLowerCase() + '"></span>' +
                         '</span></div>';
                 });
 
@@ -1112,7 +1138,7 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 card.innerHTML =
                     '<div class="model-card-header">' +
                     '<div class="model-name">' + (org ? '<span class="org">' + org + '/</span>' : '') + name + '</div>' +
-                    '<span class="status-badge ' + st + '">' + m.overall_status + '</span>' +
+                    '<span class="status-badge ' + st + '">' + overallStatus + '</span>' +
                     '</div>' +
                     '<div class="model-scenarios">' + scenarios + '</div>' +
                     '<div class="model-footer">' +

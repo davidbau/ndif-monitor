@@ -306,7 +306,6 @@ def run_notebook_test(
     scenario_name: str,
     venv: VenvManager,
     timeout: int = 300,
-    threshold_ms: int = 30000,
     extra_env: Optional[Dict[str, str]] = None,
 ) -> TestResult:
     """Run a single notebook test and return structured result.
@@ -317,7 +316,6 @@ def run_notebook_test(
         scenario_name: Name of the test scenario
         venv: VenvManager with installed packages
         timeout: Execution timeout in seconds
-        threshold_ms: Duration threshold for SLOW status
         extra_env: Additional environment variables
 
     Returns:
@@ -343,11 +341,10 @@ def run_notebook_test(
     # Determine error from cell error or execution error
     error_text = cell_error or result.error
 
-    # Classify result
+    # Classify result (SLOW is determined at analysis time, not here)
     status = determine_status(
         success=result.success and not cell_error,
         duration_ms=result.duration_ms,
-        threshold_ms=threshold_ms,
         error_text=error_text,
     )
 

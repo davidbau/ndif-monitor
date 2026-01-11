@@ -245,19 +245,19 @@ def classify_error(error_text: str) -> ErrorCategory:
 def determine_status(
     success: bool,
     duration_ms: int,
-    threshold_ms: int = 30000,
     error_text: Optional[str] = None,
 ) -> Status:
-    """Determine test status based on success and timing."""
+    """Determine test status based on success.
+
+    Note: SLOW status is determined at analysis/dashboard time, not here.
+    This allows thresholds to be adjusted without re-running tests.
+    """
     if not success:
         if error_text:
             category = classify_error(error_text)
             if category == ErrorCategory.MODEL_NOT_LOADED:
                 return Status.UNAVAILABLE
         return Status.FAILED
-
-    if duration_ms > threshold_ms:
-        return Status.SLOW
 
     return Status.OK
 
