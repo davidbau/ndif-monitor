@@ -103,12 +103,12 @@ def generate_colab_notebook(
         "import time\n",
         "\n",
         f"MODEL_NAME = '{model_name}'\n",
-        "print(f'Loading {{MODEL_NAME}}...')\n",
+        "print(f'Loading {MODEL_NAME}...')\n",
         "\n",
         "start = time.time()\n",
         "model = LanguageModel(MODEL_NAME, device_map='auto')\n",
         "load_time = time.time() - start\n",
-        "print(f'Model loaded in {{load_time:.1f}}s')\n",
+        "print(f'Model loaded in {load_time:.1f}s')\n",
     ]))
 
     # Scenario-specific test code
@@ -193,8 +193,8 @@ def _generate_trace_code(model_name: str) -> List[str]:
         f"    hidden = {layer_accessor}[0].output[0].save()\n",
         "\n",
         "trace_time = time.time() - start\n",
-        "print(f'Trace completed in {{trace_time:.1f}}s')\n",
-        "print(f'Hidden state shape: {{hidden.shape}}')\n",
+        "print(f'Trace completed in {trace_time:.1f}s')\n",
+        "print(f'Hidden state shape: {hidden.shape}')\n",
     ]
 
 
@@ -228,20 +228,20 @@ def _generate_hidden_states_code(model_name: str) -> List[str]:
         "\n",
         f"layers = {layer_accessor}\n",
         "num_layers = len(layers)\n",
-        "print(f'Model has {{num_layers}} layers')\n",
+        "print(f'Model has {num_layers} layers')\n",
         "\n",
         "start = time.time()\n",
         "with model.trace(prompt, remote=True):\n",
         "    states = [layer.output[0].save() for layer in layers]\n",
         "\n",
         "extract_time = time.time() - start\n",
-        "print(f'Extraction completed in {{extract_time:.1f}}s')\n",
+        "print(f'Extraction completed in {extract_time:.1f}s')\n",
         "\n",
-        "print(f'\\nExtracted {{len(states)}} layer states:')\n",
+        "print(f'\\nExtracted {len(states)} layer states:')\n",
         "for i, state in enumerate(states[:5]):\n",
-        "    print(f'  Layer {{i}}: {{state.shape}}')\n",
+        "    print(f'  Layer {i}: {state.shape}')\n",
         "if len(states) > 5:\n",
-        "    print(f'  ... and {{len(states) - 5}} more layers')\n",
+        "    print(f'  ... and {len(states) - 5} more layers')\n",
     ]
 
 
@@ -251,6 +251,9 @@ def _generate_validation_code(scenario: str) -> List[str]:
         return [
             "# Validate results\n",
             "import torch\n",
+            "\n",
+            "if 'hidden' not in dir():\n",
+            "    raise RuntimeError('Trace was interrupted - hidden state not captured. Try running again.')\n",
             "\n",
             "# Verify shape is reasonable\n",
             "assert len(hidden.shape) >= 2, f'Expected at least 2D tensor, got {hidden.shape}'\n",
@@ -265,6 +268,9 @@ def _generate_validation_code(scenario: str) -> List[str]:
     elif scenario == "generation":
         return [
             "# Validate generation\n",
+            "if 'generated_text' not in dir():\n",
+            "    raise RuntimeError('Generation was interrupted - output not captured. Try running again.')\n",
+            "\n",
             "assert len(generated_text) > len(prompt), 'No text was generated'\n",
             "assert generated_text.startswith(prompt[:20]), 'Generated text does not start with prompt'\n",
             "\n",
@@ -274,6 +280,9 @@ def _generate_validation_code(scenario: str) -> List[str]:
         return [
             "# Validate hidden states\n",
             "import torch\n",
+            "\n",
+            "if 'states' not in dir():\n",
+            "    raise RuntimeError('Trace was interrupted - states not captured. Try running again.')\n",
             "\n",
             "assert len(states) > 0, 'No hidden states extracted'\n",
             "\n",
