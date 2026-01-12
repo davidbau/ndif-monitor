@@ -295,6 +295,28 @@ def _generate_html(data: Dict[str, Any]) -> str:
             --text-muted: #71717a;
             --border: #27272a;
             --accent: #3b82f6;
+            --stale-bg: #1a0a0a;
+            --stale-border: #7f1d1d;
+        }
+
+        /* Stale data warning */
+        body.stale {
+            background: var(--stale-bg);
+        }
+        .stale-banner {
+            display: none;
+            background: linear-gradient(90deg, #7f1d1d 0%, #991b1b 50%, #7f1d1d 100%);
+            color: #fecaca;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            font-weight: 500;
+            border-bottom: 1px solid #dc2626;
+        }
+        body.stale .stale-banner {
+            display: block;
+        }
+        .stale-banner strong {
+            color: #fff;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -704,6 +726,10 @@ def _generate_html(data: Dict[str, Any]) -> str:
     </style>
 </head>
 <body>
+    <div class="stale-banner" id="staleBanner">
+        <strong>Warning:</strong> Monitor data is stale. The monitoring system may be down.
+        <span id="staleTime"></span>
+    </div>
     <header>
         <div class="container">
             <div class="header-inner">
@@ -845,7 +871,28 @@ def _generate_html(data: Dict[str, Any]) -> str:
             }
         }
 
+        // Check if data is stale (older than 1 hour)
+        const STALE_THRESHOLD_MS = 60 * 60 * 1000;  // 1 hour
+
+        function checkStale() {
+            if (!DATA || !DATA.generated) return;
+            const generated = new Date(DATA.generated);
+            const age = Date.now() - generated.getTime();
+            if (age > STALE_THRESHOLD_MS) {
+                document.body.classList.add('stale');
+                const hours = Math.floor(age / (60 * 60 * 1000));
+                const mins = Math.floor((age % (60 * 60 * 1000)) / (60 * 1000));
+                let ageStr = hours > 0 ? hours + 'h ' + mins + 'm' : mins + 'm';
+                document.getElementById('staleTime').textContent = '(Last update: ' + ageStr + ' ago)';
+            } else {
+                document.body.classList.remove('stale');
+            }
+        }
+
         function render() {
+            // Check for stale data
+            checkStale();
+
             // Header info
             document.getElementById('updated').textContent = formatTime(DATA.generated);
             if (DATA.nnsight_version) {
