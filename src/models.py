@@ -149,8 +149,8 @@ def get_available_models(
     for key, data in deployments.items():
         level = DeploymentLevel(data.get("deployment_level", "COLD"))
 
-        # Skip COLD models when hot_only is set (HOT and WARM are testable)
-        if hot_only and level == DeploymentLevel.COLD:
+        # Skip COLD and WARM models when hot_only is set (only HOT is testable)
+        if hot_only and level != DeploymentLevel.HOT:
             continue
 
         model = ModelInfo(
