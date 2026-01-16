@@ -28,6 +28,7 @@ from .results import (
 from .jupyter_executor import VenvManager, run_notebook_test
 from .history import HistoryStore, HistoryEntry, get_hostname, get_username
 from .notebook_generator import generate_colab_notebooks_for_model
+from .git_sync import sync_notebooks_to_github
 
 
 @dataclass
@@ -134,14 +135,25 @@ class MonitorRunner:
     def ensure_notebooks_generated(self, model_name: str) -> List[Path]:
         """Ensure Colab notebooks exist for a model, generating if needed.
 
+        Also syncs newly generated notebooks to GitHub so Colab links work.
+
         Returns list of generated/existing notebook paths.
         """
         scenario_names = [s.name for s in self.scenarios]
-        return generate_colab_notebooks_for_model(
+        paths = generate_colab_notebooks_for_model(
             model_name=model_name,
             output_dir=self.colab_dir,
             scenarios=scenario_names,
         )
+
+        # Sync new notebooks to GitHub (no-op if already tracked)
+        try:
+            sync_notebooks_to_github(model_name, self.colab_dir)
+        except Exception as e:
+            # Don't fail the monitor run if git sync fails
+            print(f"  Warning: Failed to sync notebooks to GitHub: {e}")
+
+        return paths
 
     def get_model_status_path(self, model_name: str) -> Path:
         """Get path to model's status JSON file."""
