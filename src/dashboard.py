@@ -667,6 +667,50 @@ def _generate_html(data: Dict[str, Any]) -> str:
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .error-summary {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .error-category-tag {
+            background: var(--failed);
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.2rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .error-preview {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-family: ui-monospace, monospace;
+        }
+        .expand-hint {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            margin-left: auto;
+        }
+        .expandable-row:hover { background: var(--card-hover); }
+        .error-details-row td {
+            padding: 0 !important;
+            background: var(--bg);
+        }
+        .error-full-details {
+            font-family: ui-monospace, monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            background: var(--bg);
+            padding: 1rem;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
         .no-failures {
             text-align: center;
             padding: 2rem;
@@ -688,6 +732,42 @@ def _generate_html(data: Dict[str, Any]) -> str:
         }
         .tooltip strong { color: var(--text); }
         .tooltip .tip-status { margin-top: 0.25rem; }
+        .tooltip.error-tooltip {
+            max-width: 500px;
+            max-height: 300px;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        .tooltip .error-pre {
+            font-family: ui-monospace, monospace;
+            font-size: 0.7rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--bg);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-top: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            color: var(--text-secondary);
+        }
+        .tooltip .error-category {
+            color: var(--failed);
+            font-weight: 600;
+        }
+
+        /* Clickable scenario row for errors */
+        .scenario-row.has-error {
+            cursor: pointer;
+        }
+        .scenario-row.has-error:hover {
+            background: var(--card-hover);
+        }
+        .scenario-error-hint {
+            font-size: 0.65rem;
+            color: var(--failed);
+            margin-left: 0.25rem;
+        }
 
         /* Footer */
         footer {
@@ -1175,9 +1255,16 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     // Apply SLOW threshold to each scenario
                     const effectiveStatus = getEffectiveStatus(v.status, k, v.duration_ms);
                     const scenarioColabUrl = getColabUrl(m.model, k);
-                    scenarios += '<div class="scenario-row">' +
+                    const hasError = v.status === 'FAILED' && v.details;
+                    const errorClass = hasError ? ' has-error' : '';
+                    const errorHint = hasError ? '<span class="scenario-error-hint" title="Click for details">ⓘ</span>' : '';
+                    // Store error data for tooltip
+                    const errorData = hasError ? ' data-error-category="' + (v.error_category || 'ERROR').replace(/"/g, '&quot;') +
+                        '" data-error-details="' + (v.details || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') +
+                        '" data-model="' + m.model + '" data-scenario="' + k + '"' : '';
+                    scenarios += '<div class="scenario-row' + errorClass + '"' + errorData + '>' +
                         '<span class="scenario-name-group">' +
-                        '<span class="scenario-label">' + k + '</span>' +
+                        '<span class="scenario-label">' + k + '</span>' + errorHint +
                         '<a href="' + scenarioColabUrl + '" target="_blank" class="scenario-colab" title="Run in Colab">colab</a>' +
                         '</span>' +
                         '<span class="scenario-status">' +
@@ -1200,6 +1287,12 @@ def _generate_html(data: Dict[str, Any]) -> str:
                     '<span class="updated">Updated ' + updated + '</span>' +
                     '</div>';
                 grid.appendChild(card);
+
+                // Attach error tooltip handlers to failed scenario rows
+                card.querySelectorAll('.scenario-row.has-error').forEach(row => {
+                    row.addEventListener('mouseenter', showErrorTip);
+                    row.addEventListener('mouseleave', hideErrorTip);
+                });
             });
         }
 
@@ -1212,18 +1305,53 @@ def _generate_html(data: Dict[str, Any]) -> str:
                 return;
             }
 
-            DATA.failures.forEach(f => {
+            DATA.failures.forEach((f, idx) => {
                 const colabUrl = getColabUrl(f.model, f.scenario);
+                // Get first meaningful line of error for preview
+                const errorLines = (f.details || '').split('\\n').filter(l => l.trim());
+                const errorPreview = errorLines.length > 0 ? errorLines[errorLines.length - 1].substring(0, 80) : (f.error_category || f.status);
+                const hasDetails = f.details && f.details.length > 0;
 
                 const tr = document.createElement('tr');
+                tr.className = hasDetails ? 'expandable-row' : '';
                 tr.innerHTML =
                     '<td>' + formatTime(f.timestamp) + '</td>' +
                     '<td>' + f.model.split('/').pop() + '</td>' +
                     '<td>' + f.scenario + '</td>' +
-                    '<td><span class="error-details" title="' + (f.details || '').replace(/"/g, '&quot;') + '">' + (f.error_category || f.status) + '</span></td>' +
+                    '<td><span class="error-summary">' +
+                        '<span class="error-category-tag">' + (f.error_category || 'ERROR') + '</span> ' +
+                        '<span class="error-preview">' + escapeHtml(errorPreview) + (errorPreview.length >= 80 ? '...' : '') + '</span>' +
+                        (hasDetails ? '<span class="expand-hint">▼</span>' : '') +
+                    '</span></td>' +
                     '<td><a href="' + colabUrl + '" target="_blank" class="colab-link">Reproduce →</a></td>';
                 tbody.appendChild(tr);
+
+                // Add expandable details row
+                if (hasDetails) {
+                    const detailsRow = document.createElement('tr');
+                    detailsRow.className = 'error-details-row';
+                    detailsRow.id = 'details-' + idx;
+                    detailsRow.style.display = 'none';
+                    detailsRow.innerHTML = '<td colspan="5"><pre class="error-full-details">' + escapeHtml(f.details) + '</pre></td>';
+                    tbody.appendChild(detailsRow);
+
+                    // Toggle details on click
+                    tr.style.cursor = 'pointer';
+                    tr.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return; // Don't toggle when clicking links
+                        const details = document.getElementById('details-' + idx);
+                        const isOpen = details.style.display !== 'none';
+                        details.style.display = isOpen ? 'none' : 'table-row';
+                        tr.querySelector('.expand-hint').textContent = isOpen ? '▼' : '▲';
+                    });
+                }
             });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function formatTime(iso) {
@@ -1350,7 +1478,51 @@ def _generate_html(data: Dict[str, Any]) -> str:
             tooltip.style.top = (e.clientY + 12) + 'px';
         }
 
-        function hideTip() { tooltip.style.display = 'none'; }
+        function hideTip() {
+            tooltip.style.display = 'none';
+            tooltip.classList.remove('error-tooltip');
+        }
+
+        // Show error details tooltip for failed scenarios
+        function showErrorTip(e) {
+            const row = e.currentTarget;
+            const category = row.dataset.errorCategory;
+            const details = row.dataset.errorDetails;
+            const model = row.dataset.model;
+            const scenario = row.dataset.scenario;
+
+            if (!details) return;
+
+            let html = '<strong>' + model.split('/').pop() + ' / ' + scenario + '</strong>';
+            html += '<div class="error-category">' + category + '</div>';
+            html += '<div class="error-pre">' + details + '</div>';
+
+            tooltip.innerHTML = html;
+            tooltip.classList.add('error-tooltip');
+            tooltip.style.display = 'block';
+
+            // Position tooltip, accounting for its larger size
+            const rect = tooltip.getBoundingClientRect();
+            let left = e.clientX + 12;
+            let top = e.clientY + 12;
+
+            // Keep within viewport
+            if (left + 500 > window.innerWidth) left = window.innerWidth - 520;
+            if (top + 300 > window.innerHeight) top = Math.max(10, e.clientY - 320);
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        function hideErrorTip(e) {
+            // Don't hide if mouse moved into the tooltip itself
+            const related = e.relatedTarget;
+            if (related && (related === tooltip || tooltip.contains(related))) return;
+            hideTip();
+        }
+
+        // Hide tooltip when mouse leaves it
+        document.getElementById('tooltip').addEventListener('mouseleave', hideTip);
 
         loadData();
     </script>
