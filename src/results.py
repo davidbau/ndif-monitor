@@ -46,8 +46,8 @@ class ScenarioResult:
         """Convert to JSON-serializable dictionary."""
         # Truncate details to avoid bloated JSON from full tracebacks
         details = self.details
-        if details and len(details) > 500:
-            details = details[:500] + "... [truncated]"
+        if details and len(details) > 2048:
+            details = details[:2048] + "... [truncated]"
         return {
             "status": self.status.value,
             "duration_ms": self.duration_ms,

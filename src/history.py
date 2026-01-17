@@ -97,7 +97,7 @@ class HistoryEntry:
             data["ec"] = self.error_category
         if self.details:
             # Truncate details for history storage
-            details = self.details[:200] if len(self.details) > 200 else self.details
+            details = self.details[:2048] if len(self.details) > 2048 else self.details
             data["det"] = details
         if self.host:
             data["h"] = self.host
